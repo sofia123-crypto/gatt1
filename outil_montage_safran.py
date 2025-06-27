@@ -112,40 +112,60 @@ def calculer_temps(commande_df, base_df):
     """Calcule le temps total de montage pour une commande."""
     total = 0
     erreurs = []
-
-    # Vérification des colonnes requises
-    colonnes_requises = {'reference', 'quantite'}
-    if not colonnes_requises.issubset(commande_df.columns):
-        erreurs.append(f"❌ Colonnes requises manquantes : {colonnes_requises - set(commande_df.columns)}")
+    
+    # Debug: Afficher les entrées
+    st.write("🔍 Colonnes base:", base_df.columns.tolist())
+    st.write("🔍 Colonnes commande:", commande_df.columns.tolist())
+    
+    # Normalisation robuste
+    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '')
+    base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
+    
+    # Vérification des colonnes
+    if 'reference' not in commande_df.columns:
+        erreurs.append("ERREUR: Colonne 'reference' manquante dans la commande")
         return 0, erreurs
-
-    # Vérification des données de base
-    if base_df.empty:
-        erreurs.append("❌ La base de données des temps de montage est vide.")
-        return 0, erreurs
-
-    for _, ligne in commande_df.iterrows():
-        try:
-            ref = str(ligne['reference']).strip()
-            qte = int(ligne['quantite'])
-        except (ValueError, KeyError) as e:
-            erreurs.append(f"Erreur d'accès aux données ligne {_ + 2}: {e}")
-            continue
-
-        # Recherche dans la base de données
-        ligne_base = base_df[base_df['reference'].astype(str).str.strip() == ref]
         
-        if ligne_base.empty:
-            erreurs.append(f"Référence inconnue : {ref}")
-            continue
-            
-        try:
-            temps = int(ligne_base.iloc[0]['temps_montage'])
-            total += temps * qte
-        except (ValueError, KeyError) as e:
-            erreurs.append(f"Erreur conversion temps pour {ref} : {e}")
+    if 'quantite' not in commande_df.columns:
+        erreurs.append("ERREUR: Colonne 'quantite' manquante dans la commande")
+        return 0, erreurs
+        
+    if 'temps_montage' not in base_df.columns:
+        erreurs.append("ERREUR: Colonne 'temps_montage' manquante dans la base")
+        return 0, erreurs
 
-    return total, erreurs
+    # Préparation des données
+    commande_df = commande_df.copy()
+    base_df = base_df.copy()
+    
+    commande_df['reference'] = commande_df['reference'].astype(str).str.strip().str.upper()
+    base_df['reference'] = base_df['reference'].astype(str).str.strip().str.upper()
+    
+    try:
+        commande_df['quantite'] = pd.to_numeric(commande_df['quantite']).fillna(0).astype(int)
+    except Exception as e:
+        erreurs.append(f"ERREUR conversion quantité: {e}")
+        return 0, erreurs
+
+    # Jointure sécurisée
+    df_merge = commande_df.merge(
+        base_df[['reference', 'temps_montage']],
+        on='reference',
+        how='left'
+    )
+    
+    st.write("🔍 Résultat de la jointure:", df_merge)
+    
+    # Calcul du temps
+    df_merge['temps_total'] = df_merge['quantite'] * df_merge['temps_montage']
+    total = df_merge['temps_total'].sum()
+    
+    # Détection des erreurs
+    missing_refs = df_merge[df_merge['temps_montage'].isna()]['reference'].unique()
+    for ref in missing_refs:
+        erreurs.append(f"ATTENTION: Référence '{ref}' non trouvée dans la base")
+    
+    return int(total), erreurs
 
 # --- Interface principale ---
 
@@ -231,108 +251,52 @@ if role == "Administrateur":
             afficher_gantt(st.session_state.admin_planning)
 
 elif role == "Utilisateur":
-    st.info("ℹ️ Les temps de montage sont basés sur des estimations standards.")
+    st.info("ℹ️ Calcul des temps de montage - Version 2.0")
     
-    # Chargement de la base de données des temps
+    # Chargement de la base
     try:
         base_df = pd.read_csv("Test_1.csv")
-        base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
-        if base_df.empty:
-            st.error("La base de données des temps est vide.")
+        st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
+        
+        # Nettoyage automatique
+        base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
+        
+        if 'temps_montage' not in base_df.columns:
+            st.error("❌ La base doit contenir 'temps_montage'")
             st.stop()
-    except FileNotFoundError:
-        st.error("Fichier 'Test_1.csv' introuvable.")
-        st.stop()
+            
+        base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
+        
     except Exception as e:
-        st.error(f"Erreur lors du chargement de 'Test_1.csv': {e}")
+        st.error(f"❌ Erreur base: {str(e)}")
         st.stop()
 
-    # Upload du fichier de commande
-    st.header("📤 Importation de la commande")
-    commande_file = st.file_uploader("Choisir un fichier CSV", type="csv")
+    # Upload commande
+    commande_file = st.file_uploader("📤 Déposer votre commande CSV", type="csv")
     
-    if commande_file is not None:
+    if commande_file:
         try:
-            # Lecture du fichier de commande
-            commande_df = pd.read_csv(commande_file, sep=None, engine='python')
-            commande_df.columns = commande_df.columns.str.strip().str.lower()
+            commande_df = pd.read_csv(commande_file)
+            st.success("✅ Commande importée")
             
-            # Vérification des colonnes requises
-            if not {'reference', 'quantite'}.issubset(commande_df.columns):
-                st.error("Le fichier doit contenir les colonnes 'reference' et 'quantite'.")
-                st.stop()
-                
-            # Conversion des quantités
-            commande_df['quantite'] = pd.to_numeric(commande_df['quantite'], errors='coerce').fillna(0).astype(int)
+            # Nettoyage automatique
+            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '')
             
-            # Affichage des données
-            st.success("Fichier chargé avec succès.")
-            st.dataframe(commande_df.head())
-
-            # Chargement du planning existant
-            try:
-                df_plan = pd.read_csv("planning_admin.csv")
-            except FileNotFoundError:
-                st.warning("Aucun planning trouvé. Veuillez contacter l'administrateur.")
-                df_plan = pd.DataFrame(columns=["date", "heure_debut", "heure_fin", "nom"])
-            except Exception as e:
-                st.error(f"Erreur lors du chargement du planning : {e}")
-                df_plan = pd.DataFrame(columns=["date", "heure_debut", "heure_fin", "nom"])
-
-            # Bouton de calcul
-            if st.button("⏱️ Calculer le temps de montage"):
-                with st.spinner("Calcul en cours..."):
+            if st.button("⏱ Calculer", type="primary"):
+                with st.spinner("Analyse en cours..."):
                     total, erreurs = calculer_temps(commande_df, base_df)
                     
-                    st.success(f"🕒 Temps total estimé : {total} minutes (≈ {total//60}h{total%60}min)")
+                    if total > 0:
+                        heures = total // 60
+                        minutes = total % 60
+                        st.success(f"⏳ Temps total: {heures}h{minutes:02d}min ({total} minutes)")
                     
                     if erreurs:
-                        st.warning("⚠️ Problèmes détectés :")
+                        st.warning("⚠️ Alertes:")
                         for e in erreurs:
-                            st.text(f" - {e}")
-                    
-                    # Recherche de disponibilité
-                    if not df_plan.empty:
-                        dates_planning = pd.to_datetime(df_plan["date"].unique()).date
-                        dispo = None
-                        
-                        for d in sorted(dates_planning):
-                            debut, fin = trouver_disponibilite(
-                                d, time(8, 0), time(17, 0), df_plan, total
-                            )
-                            if debut and fin:
-                                dispo = (d.strftime("%Y-%m-%d"), debut, fin)
-                                break
-                                
-                        if dispo:
-                            d, h_debut, h_fin = dispo
-                            st.info(
-                                f"📆 Disponibilité estimée le **{d}** "
-                                f"de **{h_debut.strftime('%H:%M')} à {h_fin.strftime('%H:%M')}**"
-                            )
+                            st.write(f"- {e}")
                             
-                            # Mise à jour du planning
-                            new_row = pd.DataFrame([{
-                                "date": d,
-                                "heure_debut": h_debut.strftime("%H:%M"),
-                                "heure_fin": h_fin.strftime("%H:%M"),
-                                "nom": "Montage Poste Client"
-                            }])
-                            
-                            try:
-                                df_plan = pd.concat([df_plan, new_row], ignore_index=True)
-                                df_plan.to_csv("planning_admin.csv", index=False)
-                                st.success("✅ Planning mis à jour avec la nouvelle tâche.")
-                            except Exception as e:
-                                st.error(f"Erreur lors de la mise à jour du planning : {e}")
-                        else:
-                            st.warning("Aucune plage horaire suffisante trouvée dans les jours planifiés.")
-                            
-                        # Affichage du Gantt
-                        with st.expander("📊 Voir le planning complet", expanded=True):
-                            afficher_gantt(df_plan.values.tolist())
-                    else:
-                        st.warning("Aucun planning disponible pour la recherche de créneaux.")
-
         except Exception as e:
-            st.error(f"Erreur lors du traitement du fichier : {str(e)}")
+            st.error(f"💥 Erreur: {str(e)}")
+            st.write("Contenu du fichier (extrait):")
+            st.code(commande_file.getvalue().decode('utf-8')[:200])

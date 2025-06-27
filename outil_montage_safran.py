@@ -151,7 +151,9 @@ elif role == "Utilisateur":
         erreurs = []
 
         try:
-            commande_df = pd.read_csv(commande_file)
+            commande_df = pd.read_csv(commande_file, sep=None, engine="python", encoding="utf-8")
+            commande_df.columns = commande_df.columns.str.strip().str.lower()
+
             commande_df['quantite'] = pd.to_numeric(commande_df['quantite'], errors='coerce').fillna(0).astype(int)
 
             try:

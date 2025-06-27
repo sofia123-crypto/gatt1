@@ -148,11 +148,15 @@ elif role == "Utilisateur":
 
     commande_file = st.file_uploader("📤 Charger votre commande", type="csv")
     if commande_file:
-        erreurs = []
-
         try:
             commande_df = pd.read_csv(commande_file, sep=None, engine="python", encoding="utf-8")
             commande_df.columns = commande_df.columns.str.strip().str.lower()
+            st.write("✅ Colonnes détectées :", commande_df.columns.tolist())
+
+            # 🔒 Vérification des colonnes obligatoires
+            if not {'reference', 'quantite'}.issubset(set(commande_df.columns)):
+                st.error("❌ Le fichier doit contenir les colonnes 'reference' et 'quantite'.")
+                st.stop()
 
             commande_df['quantite'] = pd.to_numeric(commande_df['quantite'], errors='coerce').fillna(0).astype(int)
 
@@ -206,3 +210,4 @@ elif role == "Utilisateur":
 
         except Exception as e:
             st.error(f"❌ Erreur traitement fichier : {e}")
+

@@ -71,19 +71,35 @@ def afficher_gantt(planning):
 def calculer_temps(commande_df, base_df):
     total = 0
     erreurs = []
+
+    # 🔐 Vérification défensive
+    if 'reference' not in commande_df.columns:
+        erreurs.append("❌ Colonne 'reference' absente du fichier.")
+        return 0, erreurs
+    if 'quantite' not in commande_df.columns:
+        erreurs.append("❌ Colonne 'quantite' absente du fichier.")
+        return 0, erreurs
+
     for _, ligne in commande_df.iterrows():
-        ref = ligne['reference']
-        qte = ligne['quantite']
+        try:
+            ref = ligne['reference']
+            qte = ligne['quantite']
+        except Exception as e:
+            erreurs.append(f"Erreur d'accès aux données ligne : {e}")
+            continue
+
         ligne_base = base_df[base_df['reference'] == ref]
         if not ligne_base.empty:
             try:
                 temps = int(ligne_base.iloc[0]['temps_montage'])
                 total += temps * qte
-            except:
-                erreurs.append(f"Erreur de conversion pour : {ref}")
+            except Exception as e:
+                erreurs.append(f"Erreur conversion temps pour {ref} : {e}")
         else:
             erreurs.append(f"Référence inconnue : {ref}")
+
     return total, erreurs
+
 
 # --- Interface principale ---
 
@@ -165,6 +181,8 @@ elif role == "Utilisateur":
             except:
                 st.warning("⚠️ Aucun planning trouvé.")
                 df_plan = pd.DataFrame(columns=["date", "heure_debut", "heure_fin", "nom"])
+            st.write("✅ Colonnes du fichier de commande :", commande_df.columns.tolist())
+            st.dataframe(commande_df)
 
             if st.button("▶️ Calculer le temps de montage"):
                 total, erreurs = calculer_temps(commande_df, base_df)

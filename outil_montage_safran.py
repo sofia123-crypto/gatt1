@@ -305,7 +305,7 @@ elif role == "Utilisateur":
             st.stop()
 
 # 🧮 Bouton de calcul (visible uniquement si commande présente)
-    if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
+if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
     if st.button("⏱ Calculer", type="primary"):
         with st.spinner("🧠 Analyse en cours..."):
             commande_df = st.session_state["commande_df"]  # Chargement sécurisé
@@ -322,5 +322,5 @@ elif role == "Utilisateur":
                 st.warning("⚠️ Alertes détectées :")
                 for e in erreurs:
                     st.write(f"- {e}")
-    else:
-        st.info("📝 Veuillez importer une commande pour activer le bouton de calcul.")
+else:
+    st.info("📝 Veuillez importer une commande pour activer le bouton de calcul.")

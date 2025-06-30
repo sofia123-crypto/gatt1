@@ -110,70 +110,71 @@ def afficher_gantt(planning):
 
 def calculer_temps(commande_df, base_df):
     """Calcule le temps total de montage pour une commande."""
-    if commande_df is None or commande_df.empty:
-        st.error("ERREUR: commande_df est vide ou non défini.")
-        return 0, ["commande_df vide"]
-    st.write("🧪 Vérification DataFrame commande")
-    st.dataframe(commande_df.head())
-    st.write("Colonnes actuelles :", commande_df.columns.tolist())
-
     total = 0
     erreurs = []
-    
-    # Debug: Afficher les entrées
-    st.write("🔍 Colonnes base:", base_df.columns.tolist())
-    st.write("🔍 Colonnes commande:", commande_df.columns.tolist())
-    
-    # Normalisation robuste
-    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-    st.write("✅ Colonnes nettoyées :", commande_df.columns.tolist())
 
-    base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
-    
-    # Vérification des colonnes
+    st.markdown("### 🧪 Diagnostic de `calculer_temps`")
+
+    # 🔧 Nettoyage des noms de colonnes
+    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+    base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+
+    st.write("📋 Colonnes commande :", commande_df.columns.tolist())
+    st.write("📋 Colonnes base :", base_df.columns.tolist())
+
+    # ❌ Vérification des colonnes obligatoires
     if 'reference' not in commande_df.columns:
         erreurs.append("ERREUR: Colonne 'reference' manquante dans la commande")
         return 0, erreurs
-        
+
     if 'quantite' not in commande_df.columns:
         erreurs.append("ERREUR: Colonne 'quantite' manquante dans la commande")
         return 0, erreurs
-        
+
+    if 'reference' not in base_df.columns:
+        erreurs.append("ERREUR: Colonne 'reference' manquante dans la base")
+        return 0, erreurs
+
     if 'temps_montage' not in base_df.columns:
         erreurs.append("ERREUR: Colonne 'temps_montage' manquante dans la base")
         return 0, erreurs
 
-    # Préparation des données
+    # 🧹 Nettoyage des valeurs
     commande_df = commande_df.copy()
     base_df = base_df.copy()
-    
+
     commande_df['reference'] = commande_df['reference'].astype(str).str.strip().str.upper()
     base_df['reference'] = base_df['reference'].astype(str).str.strip().str.upper()
-    
+
+    # Suppression des lignes sans référence
+    commande_df = commande_df.dropna(subset=['reference'])
+    commande_df = commande_df[commande_df['reference'].str.strip() != '']
+
+    # Conversion des quantités
     try:
-        commande_df['quantite'] = pd.to_numeric(commande_df['quantite']).fillna(0).astype(int)
+        commande_df['quantite'] = pd.to_numeric(commande_df['quantite'], errors='coerce').fillna(0).astype(int)
     except Exception as e:
-        erreurs.append(f"ERREUR conversion quantité: {e}")
+        erreurs.append(f"ERREUR conversion 'quantite': {e}")
         return 0, erreurs
 
-    # Jointure sécurisée
+    # 🔗 Jointure avec la base
     df_merge = commande_df.merge(
         base_df[['reference', 'temps_montage']],
         on='reference',
         how='left'
     )
-    
-    st.write("🔍 Résultat de la jointure:", df_merge)
-    
-    # Calcul du temps
+
+    st.write("🧾 Aperçu de la jointure :", df_merge.head())
+
+    # Calcul du temps total
     df_merge['temps_total'] = df_merge['quantite'] * df_merge['temps_montage']
     total = df_merge['temps_total'].sum()
-    
-    # Détection des erreurs
+
+    # 🔔 Références non trouvées
     missing_refs = df_merge[df_merge['temps_montage'].isna()]['reference'].unique()
     for ref in missing_refs:
         erreurs.append(f"ATTENTION: Référence '{ref}' non trouvée dans la base")
-    
+
     return int(total), erreurs
 
 # --- Interface principale ---
@@ -286,35 +287,42 @@ elif role == "Utilisateur":
 
 if commande_file:
     try:
+        # Lecture du CSV
         commande_df = pd.read_csv(commande_file)
+        
+        # Nettoyage des noms de colonnes (robuste)
         commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-        st.session_state["commande_df"] = commande_df  # ✅ On le sauvegarde dans la session
-        st.success("✅ Commande importée")
+        
+        # Sauvegarde dans la session
+        st.session_state["commande_df"] = commande_df
+
+        st.success("✅ Commande importée avec succès.")
         st.write("📄 Aperçu de la commande :")
         st.dataframe(commande_df.head())
 
     except Exception as e:
-        st.error(f"💥 Erreur: {str(e)}")
-        st.write("Contenu du fichier (extrait):")
-        st.code(commande_file.getvalue().decode('utf-8')[:200])
+        st.error(f"💥 Erreur lors de la lecture du fichier : {str(e)}")
+        st.write("Contenu du fichier (extrait) :")
+        st.code(commande_file.getvalue().decode('utf-8')[:300])
         st.stop()
 
-    # Bouton de calcul
+# 🧮 Bouton de calcul (visible uniquement si commande présente)
+if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
     if st.button("⏱ Calculer", type="primary"):
-        with st.spinner("Analyse en cours..."):
-            commande_df = st.session_state.get("commande_df")  # ✅ On relit depuis la session
-            if commande_df is None or commande_df.empty:
-                st.error("❌ commande_df est vide ou manquant.")
-                st.stop()
-            
+        with st.spinner("🧠 Analyse en cours..."):
+            commande_df = st.session_state["commande_df"]  # Chargement sécurisé
             total, erreurs = calculer_temps(commande_df, base_df)
 
+            # ✅ Affichage du résultat
             if total > 0:
                 heures = total // 60
                 minutes = total % 60
-                st.success(f"⏳ Temps total: {heures}h{minutes:02d}min ({total} minutes)")
+                st.success(f"⏳ Temps total estimé : **{heures}h{minutes:02d}min** ({total} minutes)")
 
+            # ⚠️ Affichage des erreurs ou alertes
             if erreurs:
-                st.warning("⚠️ Alertes:")
+                st.warning("⚠️ Alertes détectées :")
                 for e in erreurs:
                     st.write(f"- {e}")
+else:
+    st.info("📝 Veuillez importer une commande pour activer le bouton de calcul.")

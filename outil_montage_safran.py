@@ -283,8 +283,6 @@ elif role == "Utilisateur":
 
     # Upload commande
     commande_file = st.file_uploader("📤 Déposer votre commande CSV", type="csv")
-    
-
 if commande_file:
     try:
         # Lecture du CSV

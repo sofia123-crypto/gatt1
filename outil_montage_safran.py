@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta, time
 import plotly.express as px
-import io
-import streamlit.components.v1 as components
 import plotly.io as pio
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
@@ -63,8 +63,6 @@ def trouver_prochaine_dispo(temps_total_minutes):
 
     return None, None
 
-
-
 def afficher_gantt(planning):
     if not planning:
         st.warning("Aucune donnée à afficher dans le Gantt.")
@@ -98,7 +96,7 @@ def afficher_gantt(planning):
         <body>
         {html_fig}
         <br>
-        <button onclick="downloadPDF()" style="padding:10px 15px;font-size:16px;border-radius:8px;background:#4CAF50;color:white;border:none;cursor:pointer;">📥 Télécharger en PDF</button>
+        <button onclick="downloadPDF()" style="padding:10px 15px;font-size:16px;border-radius:8px;background:#4CAF50;color:white;border:none;cursor:pointer;">📅 Télécharger en PDF</button>
 
         <script>
         async function downloadPDF() {{
@@ -125,32 +123,42 @@ def afficher_gantt(planning):
     except Exception as e:
         st.error(f"Erreur lors de l'affichage du Gantt : {e}")
 
+def calculer_temps(commande_df, base_df):
+    total = 0
+    erreurs = []
+    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+    base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
 
-def exporter_gantt_png(planning):
-    if not planning:
-        return None
+    if 'reference' not in commande_df.columns or 'quantite' not in commande_df.columns:
+        erreurs.append("Colonnes 'reference' ou 'quantite' manquantes dans la commande")
+        return 0, erreurs
+
+    if 'reference' not in base_df.columns or 'temps_montage' not in base_df.columns:
+        erreurs.append("Colonnes manquantes dans la base")
+        return 0, erreurs
+
+    commande_df['reference'] = commande_df['reference'].astype(str).str.strip().str.upper()
+    base_df['reference'] = base_df['reference'].astype(str).str.strip().str.upper()
+    commande_df = commande_df.dropna(subset=['reference'])
+    commande_df = commande_df[commande_df['reference'].str.strip() != '']
 
     try:
-        df_gantt = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
-        df_gantt["Début"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_debut"])
-        df_gantt["Fin"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_fin"])
-        df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
-        df_gantt["Tâche"] = df_gantt["nom"]
-
-        fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche")
-        fig.update_yaxes(autorange="reversed")
-        fig.update_layout(title="Planning Gantt", height=600)
-
-        img_bytes = fig.to_image(format="png")  # Works on Streamlit Cloud (with kaleido)
-
-        return img_bytes
-
+        commande_df['quantite'] = pd.to_numeric(commande_df['quantite'], errors='coerce').fillna(0).astype(int)
     except Exception as e:
-        st.error(f"Erreur export PNG : {e}")
-        return None
+        erreurs.append(f"Conversion 'quantite' invalide : {e}")
+        return 0, erreurs
 
+    df_merge = commande_df.merge(base_df[['reference', 'temps_montage']], on='reference', how='left')
+    df_merge['temps_total'] = df_merge['quantite'] * df_merge['temps_montage']
+    total = df_merge['temps_total'].sum()
+    missing_refs = df_merge[df_merge['temps_montage'].isna()]['reference'].unique()
+    for ref in missing_refs:
+        erreurs.append(f"Référence manquante dans la base : {ref}")
 
-# —— Interface utilisateur/administrateur ——
+    return int(total), erreurs
+
+# --- Interface principale ---
+
 if 'admin_planning' not in st.session_state:
     st.session_state.admin_planning = []
 
@@ -193,14 +201,6 @@ if role == "Administrateur":
 
         with st.expander("📊 Diagramme de Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
-            png_file = exporter_gantt_png(st.session_state.admin_planning)
-            if png_file:
-                st.download_button(
-                    "📥 Télécharger le Gantt en PNG",
-                    png_file,
-                    file_name="planning_gantt.png",
-                    mime="image/png"
-                )
 
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
@@ -224,7 +224,7 @@ elif role == "Utilisateur":
     if commande_file:
         try:
             commande_df = pd.read_csv(commande_file)
-            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('﻿', '')
+            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
             st.session_state["commande_df"] = commande_df
             st.success("✅ Commande importée avec succès.")
             st.dataframe(commande_df.head())
@@ -246,15 +246,11 @@ elif role == "Utilisateur":
 
                     debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
                     if debut_dispo and fin_dispo:
-                        st.success(f"📆 Disponible le **{debut_dispo.strftime('%A %d/%m/%Y à %H:%M')}** jusqu'à {fin_dispo.strftime('%H:%M')}")
-                        nom_tache = st.text_input("🔤 Nom de la tâche à ajouter :", "Montage client")
+                        date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
+                        st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
+                        nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client")
                         if st.button("📌 Ajouter au planning"):
-                            st.session_state.admin_planning.append((
-                                debut_dispo.date().isoformat(),
-                                debut_dispo.strftime("%H:%M"),
-                                fin_dispo.strftime("%H:%M"),
-                                nom_tache
-                            ))
+                            st.session_state.admin_planning.append((debut_dispo.date().isoformat(), debut_dispo.strftime("%H:%M"), fin_dispo.strftime("%H:%M"), nom_tache))
                             st.success("Tâche ajoutée au planning.")
                             st.rerun()
                     else:
@@ -267,9 +263,5 @@ elif role == "Utilisateur":
 
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
-            pdf_file = exporter_gantt_pdf(st.session_state.admin_planning)
-            if pdf_file:
-                st.download_button("📅 Télécharger le Gantt en PDF", pdf_file, file_name="planning_gantt.pdf", mime="application/pdf")
-
     else:
         st.info("📅 Veuillez importer une commande.")

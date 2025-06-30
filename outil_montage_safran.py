@@ -305,7 +305,7 @@ elif role == "Utilisateur":
 # 🧮 Bouton de calcul (visible uniquement si commande présente)
 if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
     if st.button("⏱ Calculer", type="primary"):
-        with st.spinner("🧠 Analyse en cours..."):
+        with st.spinner(" Analyse en cours..."):
             commande_df = st.session_state["commande_df"]  # Chargement sécurisé
             total, erreurs = calculer_temps(commande_df, base_df)
 

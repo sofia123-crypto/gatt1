@@ -110,6 +110,13 @@ def afficher_gantt(planning):
 
 def calculer_temps(commande_df, base_df):
     """Calcule le temps total de montage pour une commande."""
+    if commande_df is None or commande_df.empty:
+        st.error("ERREUR: commande_df est vide ou non défini.")
+        return 0, ["commande_df vide"]
+    st.write("🧪 Vérification DataFrame commande")
+    st.dataframe(commande_df.head())
+    st.write("Colonnes actuelles :", commande_df.columns.tolist())
+
     total = 0
     erreurs = []
     
@@ -276,29 +283,40 @@ elif role == "Utilisateur":
     # Upload commande
     commande_file = st.file_uploader("📤 Déposer votre commande CSV", type="csv")
     
-    if commande_file:
-        try:
-            commande_df = pd.read_csv(commande_file)
-            st.success("✅ Commande importée")
+    # Upload commande
+commande_file = st.file_uploader("📤 Déposer votre commande CSV", type="csv")
+
+if commande_file:
+    try:
+        commande_df = pd.read_csv(commande_file)
+        commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+        st.session_state["commande_df"] = commande_df  # ✅ On le sauvegarde dans la session
+        st.success("✅ Commande importée")
+        st.write("📄 Aperçu de la commande :")
+        st.dataframe(commande_df.head())
+
+    except Exception as e:
+        st.error(f"💥 Erreur: {str(e)}")
+        st.write("Contenu du fichier (extrait):")
+        st.code(commande_file.getvalue().decode('utf-8')[:200])
+        st.stop()
+
+    # Bouton de calcul
+    if st.button("⏱ Calculer", type="primary"):
+        with st.spinner("Analyse en cours..."):
+            commande_df = st.session_state.get("commande_df")  # ✅ On relit depuis la session
+            if commande_df is None or commande_df.empty:
+                st.error("❌ commande_df est vide ou manquant.")
+                st.stop()
             
-            # Nettoyage automatique
-            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '')
-            
-            if st.button("⏱ Calculer", type="primary"):
-                with st.spinner("Analyse en cours..."):
-                    total, erreurs = calculer_temps(commande_df, base_df)
-                    
-                    if total > 0:
-                        heures = total // 60
-                        minutes = total % 60
-                        st.success(f"⏳ Temps total: {heures}h{minutes:02d}min ({total} minutes)")
-                    
-                    if erreurs:
-                        st.warning("⚠️ Alertes:")
-                        for e in erreurs:
-                            st.write(f"- {e}")
-                            
-        except Exception as e:
-            st.error(f"💥 Erreur: {str(e)}")
-            st.write("Contenu du fichier (extrait):")
-            st.code(commande_file.getvalue().decode('utf-8')[:200])
+            total, erreurs = calculer_temps(commande_df, base_df)
+
+            if total > 0:
+                heures = total // 60
+                minutes = total % 60
+                st.success(f"⏳ Temps total: {heures}h{minutes:02d}min ({total} minutes)")
+
+            if erreurs:
+                st.warning("⚠️ Alertes:")
+                for e in erreurs:
+                    st.write(f"- {e}")

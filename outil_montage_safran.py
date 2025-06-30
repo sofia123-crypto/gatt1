@@ -94,7 +94,7 @@ def afficher_gantt(planning):
     except Exception as e:
         st.error(f"Erreur lors de la génération du Gantt : {e}")
 
-def exporter_gantt_pdf(planning):
+def exporter_gantt_png(planning):
     if not planning:
         return None
 
@@ -109,19 +109,14 @@ def exporter_gantt_pdf(planning):
         fig.update_yaxes(autorange="reversed")
         fig.update_layout(title="Planning Gantt", height=600)
 
-        img_bytes = fig.to_image(format="png")
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.image(io.BytesIO(img_bytes), x=10, y=20, w=190)
+        img_bytes = fig.to_image(format="png")  # Works on Streamlit Cloud (with kaleido)
 
-        buffer = io.BytesIO()
-        pdf.output(buffer)
-        buffer.seek(0)
-        return buffer
+        return img_bytes
 
     except Exception as e:
-        st.error(f"Erreur lors de l'export PDF : {e}")
+        st.error(f"Erreur export PNG : {e}")
         return None
+
 
 # —— Interface utilisateur/administrateur ——
 if 'admin_planning' not in st.session_state:
@@ -166,9 +161,14 @@ if role == "Administrateur":
 
         with st.expander("📊 Diagramme de Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
-            pdf_file = exporter_gantt_pdf(st.session_state.admin_planning)
-            if pdf_file:
-                st.download_button("📅 Télécharger le Gantt en PDF", pdf_file, file_name="planning_gantt.pdf", mime="application/pdf")
+            png_file = exporter_gantt_png(st.session_state.admin_planning)
+            if png_file:
+                st.download_button(
+                    "📥 Télécharger le Gantt en PNG",
+                    png_file,
+                    file_name="planning_gantt.png",
+                    mime="image/png"
+                )
 
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")

@@ -16,13 +16,12 @@ def trouver_disponibilite(date_jour, h_debut_jour, h_fin_jour, planning, temps_r
 
     taches = []
     for _, row in planning.iterrows():
-        if row["date"] == str(date_jour):
+        if pd.to_datetime(row["date"]).date() == date_jour:
             try:
                 debut_tache = datetime.combine(date_jour, datetime.strptime(row["heure_debut"], "%H:%M").time())
                 fin_tache = datetime.combine(date_jour, datetime.strptime(row["heure_fin"], "%H:%M").time())
                 taches.append((debut_tache, fin_tache))
-            except ValueError as e:
-                st.warning(f"Format d'heure invalide dans le planning : {e}")
+            except ValueError:
                 continue
 
     taches.sort()
@@ -52,18 +51,13 @@ def trouver_prochaine_dispo(temps_total_minutes):
         columns=["date", "heure_debut", "heure_fin", "nom"]
     )
     planning_df["date"] = pd.to_datetime(planning_df["date"]).dt.date
-    dates_unique = sorted(planning_df["date"].unique())
 
-    for d in dates_unique:
-        debut, fin = trouver_disponibilite(d, time(8, 0), time(17, 0), planning_df, temps_total_minutes)
+    date_actuelle = datetime.today().date()
+    for i in range(30):  # Cherche sur les 30 prochains jours
+        jour = date_actuelle + timedelta(days=i)
+        debut, fin = trouver_disponibilite(jour, time(8, 0), time(17, 0), planning_df, temps_total_minutes)
         if debut and fin:
             return debut, fin
-
-    dernier_jour = max(dates_unique)
-    jour_suivant = dernier_jour + timedelta(days=1)
-    debut, fin = trouver_disponibilite(jour_suivant, time(8, 0), time(17, 0), planning_df, temps_total_minutes)
-    if debut and fin:
-        return debut, fin
 
     return None, None
 
@@ -177,26 +171,6 @@ if role == "Administrateur":
         df_taches = pd.DataFrame(st.session_state.admin_planning, columns=["Date", "Heure début", "Heure fin", "Description"])
         st.dataframe(df_taches)
 
-        col_reset, col_save, col_export = st.columns(3)
-        if col_reset.button("🗑️ Réinitialiser le planning"):
-            st.session_state.admin_planning.clear()
-            st.success("Planning réinitialisé.")
-
-        if col_save.button("📂 Sauvegarder dans planning_admin.csv"):
-            try:
-                pd.DataFrame(st.session_state.admin_planning, columns=["date", "heure_debut", "heure_fin", "nom"]).to_csv("planning_admin.csv", index=False)
-                st.success("Planning sauvegardé avec succès.")
-            except Exception as e:
-                st.error(f"Erreur lors de la sauvegarde : {e}")
-
-        if col_export.button("📄 Exporter vers Excel"):
-            try:
-                df = pd.DataFrame(st.session_state.admin_planning, columns=["date", "heure_debut", "heure_fin", "nom"])
-                df.to_excel("planning_admin.xlsx", index=False)
-                st.success("Fichier Excel exporté avec succès.")
-            except Exception as e:
-                st.error(f"Erreur lors de l'export Excel : {e}")
-
         with st.expander("📊 Diagramme de Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
 
@@ -258,5 +232,9 @@ elif role == "Utilisateur":
                     st.warning("⚠️ Alertes :")
                     for e in erreurs:
                         st.write(f"- {e}")
+
+        with st.expander("📊 Visualisation du planning Gantt"):
+            afficher_gantt(st.session_state.admin_planning)
+
     else:
         st.info("📅 Veuillez importer une commande.")

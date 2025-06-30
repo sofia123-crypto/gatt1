@@ -119,9 +119,7 @@ def calculer_temps(commande_df, base_df):
     commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
     base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
 
-    st.write("📋 Colonnes commande :", commande_df.columns.tolist())
-    st.write("📋 Colonnes base :", base_df.columns.tolist())
-
+    
     # ❌ Vérification des colonnes obligatoires
     if 'reference' not in commande_df.columns:
         erreurs.append("ERREUR: Colonne 'reference' manquante dans la commande")

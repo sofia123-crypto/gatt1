@@ -283,29 +283,29 @@ elif role == "Utilisateur":
 
     # Upload commande
     commande_file = st.file_uploader("📤 Déposer votre commande CSV", type="csv")
-if commande_file:
-    try:
+    if commande_file:
+        try:
         # Lecture du CSV
-        commande_df = pd.read_csv(commande_file)
+            commande_df = pd.read_csv(commande_file)
         
         # Nettoyage des noms de colonnes (robuste)
-        commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
         
         # Sauvegarde dans la session
-        st.session_state["commande_df"] = commande_df
+            st.session_state["commande_df"] = commande_df
 
-        st.success("✅ Commande importée avec succès.")
-        st.write("📄 Aperçu de la commande :")
-        st.dataframe(commande_df.head())
+            st.success("✅ Commande importée avec succès.")
+            st.write("📄 Aperçu de la commande :")
+            st.dataframe(commande_df.head())
 
-    except Exception as e:
-        st.error(f"💥 Erreur lors de la lecture du fichier : {str(e)}")
-        st.write("Contenu du fichier (extrait) :")
-        st.code(commande_file.getvalue().decode('utf-8')[:300])
-        st.stop()
+        except Exception as e:
+            st.error(f"💥 Erreur lors de la lecture du fichier : {str(e)}")
+            st.write("Contenu du fichier (extrait) :")
+            st.code(commande_file.getvalue().decode('utf-8')[:300])
+            st.stop()
 
 # 🧮 Bouton de calcul (visible uniquement si commande présente)
-if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
+    if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
     if st.button("⏱ Calculer", type="primary"):
         with st.spinner("🧠 Analyse en cours..."):
             commande_df = st.session_state["commande_df"]  # Chargement sécurisé
@@ -322,5 +322,5 @@ if "commande_df" in st.session_state and not st.session_state["commande_df"].emp
                 st.warning("⚠️ Alertes détectées :")
                 for e in erreurs:
                     st.write(f"- {e}")
-else:
-    st.info("📝 Veuillez importer une commande pour activer le bouton de calcul.")
+    else:
+        st.info("📝 Veuillez importer une commande pour activer le bouton de calcul.")

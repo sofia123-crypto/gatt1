@@ -221,11 +221,28 @@ elif role == "Utilisateur":
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
                         nom_tache = st.text_input("🔤 Nom de la tâche à ajouter :", "Montage client")
                         if st.button("📌 Ajouter au planning"):
-                            st.session_state.admin_planning.append((debut_dispo.date().isoformat(), debut_dispo.strftime("%H:%M"), fin_dispo.strftime("%H:%M"), nom_tache))
-                            st.success("Tâche ajoutée au planning.")
-                            st.rerun()
-                    else:
-                        st.error("❌ Aucune disponibilité trouvée.")
+                            debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
+                            if debut_dispo and fin_dispo:
+                                date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
+                                st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
+
+                                nom_tache = st.text_input("🔤 Nom de la tâche à ajouter :", "Montage client")
+                                if st.button("📌 Ajouter au planning"):
+                            # Ajouter automatiquement la tâche à la session
+                                    st.session_state.admin_planning.append((
+                                        debut_dispo.date().isoformat(),
+                                        debut_dispo.strftime("%H:%M"),
+                                        fin_dispo.strftime("%H:%M"),
+                                        nom_tache
+                                    ))
+                                    st.success("✅ Tâche ajoutée automatiquement au planning.")
+                            
+                            # Afficher Gantt à jour
+                                    with st.expander("📊 Visualisation du planning Gantt mise à jour", expanded=True):
+                                        afficher_gantt(st.session_state.admin_planning)
+                            else:
+                                st.error("❌ Aucune disponibilité trouvée.")
+
 
                 if erreurs:
                     st.warning("⚠️ Alertes :")

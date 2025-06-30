@@ -3,7 +3,6 @@ import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
 
-# Configuration de la page
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
 
@@ -53,7 +52,7 @@ def trouver_prochaine_dispo(temps_total_minutes):
     planning_df["date"] = pd.to_datetime(planning_df["date"]).dt.date
 
     date_actuelle = datetime.today().date()
-    for i in range(30):  # Cherche sur les 30 prochains jours
+    for i in range(30):
         jour = date_actuelle + timedelta(days=i)
         debut, fin = trouver_disponibilite(jour, time(8, 0), time(17, 0), planning_df, temps_total_minutes)
         if debut and fin:
@@ -233,7 +232,7 @@ elif role == "Utilisateur":
                     for e in erreurs:
                         st.write(f"- {e}")
 
-        with st.expander("📊 Visualisation du planning Gantt"):
+        with st.expander("📊 Visualisation du planning Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
 
     else:

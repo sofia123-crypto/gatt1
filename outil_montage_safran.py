@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
-from fpdf import FPDF
 import io
+import streamlit.components.v1 as components
+import plotly.io as pio
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
@@ -62,6 +63,8 @@ def trouver_prochaine_dispo(temps_total_minutes):
 
     return None, None
 
+
+
 def afficher_gantt(planning):
     if not planning:
         st.warning("Aucune donnée à afficher dans le Gantt.")
@@ -82,17 +85,46 @@ def afficher_gantt(planning):
 
         fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="📅 Planning Gantt par jour")
         fig.update_yaxes(autorange="reversed", title="Jour")
-        fig.update_xaxes(tickformat="%H:%M", dtick=3600000,
-                         range=[df_gantt["Début"].min() - pd.Timedelta(hours=1),
-                                df_gantt["Fin"].max() + pd.Timedelta(hours=1)],
-                         title="Heure de la journée")
-        fig.update_layout(height=600, title_font_size=22, font=dict(size=14), margin=dict(l=80, r=80, t=80, b=80), title_x=0.5, plot_bgcolor="white", paper_bgcolor="white")
+        fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
+        fig.update_layout(height=600, title_font_size=22)
+
+        html_fig = pio.to_html(fig, include_plotlyjs='cdn')
+
+        custom_html = f"""
+        <html>
+        <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+        </head>
+        <body>
+        {html_fig}
+        <br>
+        <button onclick="downloadPDF()" style="padding:10px 15px;font-size:16px;border-radius:8px;background:#4CAF50;color:white;border:none;cursor:pointer;">📥 Télécharger en PDF</button>
+
+        <script>
+        async function downloadPDF() {{
+            const {{ jsPDF }} = window.jspdf;
+            const chart = document.querySelector('.js-plotly-plot');
+            const canvas = await html2canvas(chart);
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            const width = pdf.internal.pageSize.getWidth();
+            const height = pdf.internal.pageSize.getHeight();
+            pdf.addImage(imgData, 'PNG', 10, 10, width - 20, height - 20);
+            pdf.save('planning_gantt.pdf');
+        }}
+        </script>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+        </body>
+        </html>
+        """
 
         st.markdown("### 📊 Visualisation Gantt")
-        st.plotly_chart(fig, use_container_width=True)
+        components.html(custom_html, height=800)
 
     except Exception as e:
-        st.error(f"Erreur lors de la génération du Gantt : {e}")
+        st.error(f"Erreur lors de l'affichage du Gantt : {e}")
+
 
 def exporter_gantt_png(planning):
     if not planning:

@@ -118,7 +118,9 @@ def calculer_temps(commande_df, base_df):
     st.write("🔍 Colonnes commande:", commande_df.columns.tolist())
     
     # Normalisation robuste
-    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '')
+    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+    st.write("✅ Colonnes nettoyées :", commande_df.columns.tolist())
+
     base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
     
     # Vérification des colonnes

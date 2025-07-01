@@ -173,10 +173,8 @@ else:
                 debut.strftime("%H:%M"),
                 fin.strftime("%H:%M"),
                 nom
-                st.write("✅ DEBUG : tâche ajoutée")
-
             ))
-            #st.write("✅ DEBUG : tâche ajoutée")
+            st.write("✅ DEBUG : tâche ajoutée")
 
             st.session_state.commande_validee = False
             st.success("Ajouté.")

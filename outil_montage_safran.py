@@ -155,9 +155,9 @@ if role == "Administrateur":
     with st.form("form_admin"):
         st.subheader("➕ Ajouter une tâche")
         col1, col2, col3 = st.columns([1, 1, 2])
-        tache_debut = col1.time_input("Heure début", time(9, 0))
-        tache_fin = col2.time_input("Heure fin", time(10, 0))
-        tache_nom = col3.text_input("Nom de la tâche", "Réunion")
+        tache_debut = col1.time_input("Heure début", time(9, 0), key="admin_debut")
+        tache_fin = col2.time_input("Heure fin", time(10, 0), key="admin_fin")
+        tache_nom = col3.text_input("Nom de la tâche", "Réunion", key="admin_nom")
 
         if st.form_submit_button("Ajouter la tâche"):
             if tache_debut >= tache_fin:
@@ -167,6 +167,7 @@ if role == "Administrateur":
             else:
                 st.session_state.admin_planning.append((str(date_plan), tache_debut.strftime("%H:%M"), tache_fin.strftime("%H:%M"), tache_nom))
                 st.success("Tâche ajoutée avec succès.")
+                st.rerun()
 
     if st.session_state.admin_planning:
         st.subheader("📋 Tâches planifiées")
@@ -179,6 +180,7 @@ if role == "Administrateur":
         if st.button("🧹 Réinitialiser le planning"):
             st.session_state.admin_planning = []
             st.success("Planning vidé.")
+            st.rerun()
 
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
@@ -225,8 +227,8 @@ elif role == "Utilisateur":
                     if debut_dispo and fin_dispo:
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
-                        nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client")
-                        if st.button("📌 Ajouter au planning"):
+                        nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
+                        if st.button("📌 Ajouter au planning", key="user_ajout"):
                             st.session_state.admin_planning.append((debut_dispo.date().isoformat(), debut_dispo.strftime("%H:%M"), fin_dispo.strftime("%H:%M"), nom_tache))
                             st.success("Tâche ajoutée au planning.")
                             st.rerun()

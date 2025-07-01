@@ -3,8 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, time
 import plotly.express as px
-import plotly.io as pio
-import streamlit.components.v1 as components
+import io
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
@@ -48,10 +47,7 @@ def trouver_prochaine_dispo(temps_total_minutes):
     if not st.session_state.admin_planning:
         return None, None
 
-    planning_df = pd.DataFrame(
-        st.session_state.admin_planning,
-        columns=["date", "heure_debut", "heure_fin", "nom"]
-    )
+    planning_df = pd.DataFrame(st.session_state.admin_planning, columns=["date", "heure_debut", "heure_fin", "nom"])
     planning_df["date"] = pd.to_datetime(planning_df["date"]).dt.date
 
     date_actuelle = datetime.today().date()
@@ -68,60 +64,29 @@ def afficher_gantt(planning):
         st.warning("Aucune donnée à afficher dans le Gantt.")
         return
 
-    try:
-        df_gantt = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
-        df_gantt["Début"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_debut"], errors='coerce')
-        df_gantt["Fin"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_fin"], errors='coerce')
-        df_gantt = df_gantt.dropna(subset=["Début", "Fin"])
+    df_gantt = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
+    df_gantt["Début"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_debut"], errors='coerce')
+    df_gantt["Fin"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_fin"], errors='coerce')
+    df_gantt.dropna(subset=["Début", "Fin"], inplace=True)
 
-        if df_gantt.empty:
-            st.warning("Aucune donnée valide pour le Gantt.")
-            return
+    if df_gantt.empty:
+        st.warning("Aucune donnée valide pour le Gantt.")
+        return
 
-        df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
-        df_gantt["Tâche"] = df_gantt["nom"]
+    df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
+    df_gantt["Tâche"] = df_gantt["nom"]
 
-        fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="📅 Planning Gantt par jour")
-        fig.update_yaxes(autorange="reversed", title="Jour")
-        fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
-        fig.update_layout(height=600, title_font_size=22)
+    fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="📅 Planning Gantt par jour")
+    fig.update_yaxes(autorange="reversed", title="Jour")
+    fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
+    fig.update_layout(height=600, title_font_size=22)
 
-        html_fig = pio.to_html(fig, include_plotlyjs='cdn')
+    st.plotly_chart(fig, use_container_width=True)
 
-        custom_html = f"""
-        <html>
-        <head>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-        </head>
-        <body>
-        {html_fig}
-        <br>
-        <button onclick="downloadPDF()" style="padding:10px 15px;font-size:16px;border-radius:8px;background:#4CAF50;color:white;border:none;cursor:pointer;">📅 Télécharger en PDF</button>
-
-        <script>
-        async function downloadPDF() {{
-            const {{ jsPDF }} = window.jspdf;
-            const chart = document.querySelector('.js-plotly-plot');
-            const canvas = await html2canvas(chart);
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('l', 'mm', 'a4');
-            const width = pdf.internal.pageSize.getWidth();
-            const height = pdf.internal.pageSize.getHeight();
-            pdf.addImage(imgData, 'PNG', 10, 10, width - 20, height - 20);
-            pdf.save('planning_gantt.pdf');
-        }}
-        </script>
-
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-        </body>
-        </html>
-        """
-
-        st.markdown("### 📊 Visualisation Gantt")
-        components.html(custom_html, height=800)
-
-    except Exception as e:
-        st.error(f"Erreur lors de l'affichage du Gantt : {e}")
+    # Ajout d’un bouton de téléchargement PNG
+    buffer = io.BytesIO()
+    fig.write_image(buffer, format="png")
+    st.download_button("📥 Télécharger le Gantt en PNG", buffer, file_name="planning_gantt.png", mime="image/png")
 
 def calculer_temps(commande_df, base_df):
     total = 0
@@ -164,6 +129,7 @@ if 'admin_planning' not in st.session_state:
 
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])
 
+# --- Espace Administrateur ---
 if role == "Administrateur":
     mdp = st.sidebar.text_input("🔐 Entrez le mot de passe :", type="password")
     if mdp != "safran123":
@@ -199,23 +165,29 @@ if role == "Administrateur":
         df_taches = pd.DataFrame(st.session_state.admin_planning, columns=["Date", "Heure début", "Heure fin", "Description"])
         st.dataframe(df_taches)
 
+        col_reset, col_save = st.columns(2)
+        if col_reset.button("🔄 Réinitialiser le planning"):
+            st.session_state.admin_planning = []
+            st.success("Planning vidé.")
+
+        if col_save.download_button("💾 Sauvegarder le planning", data=df_taches.to_csv(index=False).encode('utf-8'), file_name="planning_admin.csv", mime="text/csv"):
+            st.success("Planning sauvegardé.")
+
         with st.expander("📊 Diagramme de Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
 
+# --- Espace Utilisateur ---
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
 
     try:
         base_df = pd.read_csv("Test_1.csv")
         base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
-
         if 'temps_montage' not in base_df.columns:
             st.error("❌ La base doit contenir 'temps_montage'")
             st.stop()
-
         base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
         st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
-
     except Exception as e:
         st.error(f"❌ Erreur base: {str(e)}")
         st.stop()
@@ -229,7 +201,7 @@ elif role == "Utilisateur":
             st.success("✅ Commande importée avec succès.")
             st.dataframe(commande_df.head())
         except Exception as e:
-            st.error(f"🚥 Erreur lecture fichier : {str(e)}")
+            st.error(f" Erreur lecture fichier : {str(e)}")
             st.code(commande_file.getvalue().decode('utf-8')[:300])
             st.stop()
 
@@ -246,12 +218,11 @@ elif role == "Utilisateur":
 
                     debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
                     if debut_dispo and fin_dispo:
-                        date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
-                        st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
+                        st.success(f"📆 Disponible le **{debut_dispo.strftime('%A %d/%m/%Y à %H:%M')}** jusqu'à {fin_dispo.strftime('%H:%M')}")
                         nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client")
                         if st.button("📌 Ajouter au planning"):
                             st.session_state.admin_planning.append((debut_dispo.date().isoformat(), debut_dispo.strftime("%H:%M"), fin_dispo.strftime("%H:%M"), nom_tache))
-                            st.success("Tâche ajoutée au planning.")
+                            st.success("✅ Tâche ajoutée au planning.")
                             st.rerun()
                     else:
                         st.error("❌ Aucune disponibilité trouvée.")

@@ -228,21 +228,26 @@ elif role == "Utilisateur":
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
 
-                        with st.form("form_user_add"):
-                            nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
-                            if st.form_submit_button("📌 Ajouter au planning"):
-                                st.session_state.admin_planning.append((debut_dispo.date().isoformat(), debut_dispo.strftime("%H:%M"), fin_dispo.strftime("%H:%M"), nom_tache))
-                                st.success("Tâche ajoutée au planning.")
-                                st.rerun()
-                    else:
-                        st.error("❌ Aucune disponibilité trouvée.")
+                        nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
+                        ajout = st.button("📌 Ajouter au planning", key="user_ajout")
+
+                        if ajout:
+                            st.session_state.admin_planning.append((
+                                debut_dispo.date().isoformat(),
+                                debut_dispo.strftime("%H:%M"),
+                                fin_dispo.strftime("%H:%M"),
+                                nom_tache
+                            ))
+                            st.success("Tâche ajoutée au planning.")
+                            st.rerun()
 
                 if erreurs:
                     st.warning("⚠️ Alertes :")
                     for e in erreurs:
                         st.write(f"- {e}")
 
-        with st.expander("📊 Visualisation du planning Gantt", expanded=True):
-            afficher_gantt(st.session_state.admin_planning)
+        if st.session_state.admin_planning:
+            with st.expander("📊 Visualisation du planning Gantt", expanded=True):
+                afficher_gantt(st.session_state.admin_planning)
     else:
         st.info("📅 Veuillez importer une commande.")

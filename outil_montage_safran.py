@@ -81,11 +81,19 @@ def afficher_gantt(planning):
     fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
     fig.update_layout(height=600, title_font_size=22)
 
+    # ✅ Affichage du Gantt
     st.plotly_chart(fig, use_container_width=True)
 
-    # Optionnel : sauvegarde en CSV au lieu d'image
-    st.download_button("📥 Télécharger le planning (CSV)", data=df_gantt.to_csv(index=False).encode("utf-8"), file_name="planning_gantt.csv", mime="text/csv")
+    # ✅ Télécharger le planning en CSV
+    df_csv = df_gantt[["date", "heure_debut", "heure_fin", "nom"]]
+    st.download_button(
+        "📥 Télécharger le planning (CSV)",
+        data=df_csv.to_csv(index=False).encode("utf-8"),
+        file_name="planning_gantt.csv",
+        mime="text/csv"
+    )
 
+    
 def calculer_temps(commande_df, base_df):
     total = 0
     erreurs = []

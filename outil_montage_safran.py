@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, time
 import plotly.express as px
-import streamlit.components.v1 as components
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
@@ -79,7 +78,7 @@ def afficher_gantt(planning):
         df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
         df_gantt["Tâche"] = df_gantt["nom"]
 
-        fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="🗕️ Planning Gantt par jour")
+        fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="📅 Planning Gantt par jour")
         fig.update_yaxes(autorange="reversed", title="Jour")
         fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
         fig.update_layout(height=600, title_font_size=22)
@@ -87,14 +86,14 @@ def afficher_gantt(planning):
         st.plotly_chart(fig, use_container_width=True)
 
         st.download_button(
-            "📅 Télécharger le planning (CSV)",
+            label="📥 Télécharger le planning CSV",
             data=df_gantt[["date", "heure_debut", "heure_fin", "nom"]].to_csv(index=False).encode("utf-8"),
             file_name="planning_gantt.csv",
             mime="text/csv"
         )
 
     except Exception as e:
-        st.error(f"❌ Erreur d'affichage Gantt : {e}")
+        st.error(f"❌ Erreur lors de l'affichage du Gantt : {e}")
 
 def calculer_temps(commande_df, base_df):
     total = 0
@@ -130,13 +129,13 @@ def calculer_temps(commande_df, base_df):
 
     return int(total), erreurs
 
-# --- Initialisation Session ---
+# --- Initialisation ---
 if 'admin_planning' not in st.session_state:
     st.session_state.admin_planning = []
 if 'commande_df' not in st.session_state:
     st.session_state.commande_df = pd.DataFrame()
 
-# --- Interface principale ---
+# --- Interface ---
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])
 
 if role == "Administrateur":
@@ -177,7 +176,7 @@ if role == "Administrateur":
         with st.expander("📊 Diagramme de Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
 
-        if st.button("🔄 Réinitialiser le planning"):
+        if st.button("🧹 Réinitialiser le planning"):
             st.session_state.admin_planning = []
             st.success("Planning vidé.")
 
@@ -204,7 +203,7 @@ elif role == "Utilisateur":
         try:
             commande_df = pd.read_csv(commande_file)
             commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-            st.session_state["commande_df"] = commande_df
+            st.session_state.commande_df = commande_df
             st.success("✅ Commande importée avec succès.")
             st.dataframe(commande_df.head())
         except Exception as e:

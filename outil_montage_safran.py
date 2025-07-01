@@ -129,11 +129,15 @@ def calculer_temps(commande_df, base_df):
 
     return int(total), erreurs
 
-# --- Initialisation ---
+# --- Initialisation Session ---
 if 'admin_planning' not in st.session_state:
     st.session_state.admin_planning = []
 if 'commande_df' not in st.session_state:
     st.session_state.commande_df = pd.DataFrame()
+if 'derniere_dispo' not in st.session_state:
+    st.session_state.derniere_dispo = None
+if 'nom_tache_user' not in st.session_state:
+    st.session_state.nom_tache_user = "Montage client"
 
 # --- Interface ---
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])
@@ -188,14 +192,11 @@ elif role == "Utilisateur":
     try:
         base_df = pd.read_csv("Test_1.csv")
         base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
-
         if 'temps_montage' not in base_df.columns:
             st.error("❌ La base doit contenir 'temps_montage'")
             st.stop()
-
         base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
         st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
-
     except Exception as e:
         st.error(f"❌ Erreur base: {str(e)}")
         st.stop()
@@ -214,9 +215,8 @@ elif role == "Utilisateur":
 
     if not st.session_state.commande_df.empty:
         if st.button("⏱ Calculer", type="primary"):
-            with st.spinner(" Analyse en cours..."):
-                commande_df = st.session_state.commande_df
-                total, erreurs = calculer_temps(commande_df, base_df)
+            with st.spinner("Analyse en cours..."):
+                total, erreurs = calculer_temps(st.session_state.commande_df, base_df)
 
                 if total > 0:
                     heures = total // 60
@@ -225,18 +225,18 @@ elif role == "Utilisateur":
 
                     debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
                     if debut_dispo and fin_dispo:
+                        st.session_state.derniere_dispo = (debut_dispo, fin_dispo)
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
 
-                        nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
-                        ajout = st.button("📌 Ajouter au planning", key="user_ajout")
+                        st.session_state.nom_tache_user = st.text_input("📄 Nom de la tâche à ajouter :", st.session_state.nom_tache_user)
 
-                        if ajout:
+                        if st.button("📌 Ajouter au planning"):
                             st.session_state.admin_planning.append((
                                 debut_dispo.date().isoformat(),
                                 debut_dispo.strftime("%H:%M"),
                                 fin_dispo.strftime("%H:%M"),
-                                nom_tache
+                                st.session_state.nom_tache_user
                             ))
                             st.success("Tâche ajoutée au planning.")
                             st.rerun()
@@ -251,3 +251,4 @@ elif role == "Utilisateur":
                 afficher_gantt(st.session_state.admin_planning)
     else:
         st.info("📅 Veuillez importer une commande.")
+

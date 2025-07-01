@@ -83,10 +83,8 @@ def afficher_gantt(planning):
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Ajout d’un bouton de téléchargement PNG
-    buffer = io.BytesIO()
-    fig.write_image(buffer, format="png")
-    st.download_button("📥 Télécharger le Gantt en PNG", buffer, file_name="planning_gantt.png", mime="image/png")
+    # Optionnel : sauvegarde en CSV au lieu d'image
+    st.download_button("📥 Télécharger le planning (CSV)", data=df_gantt.to_csv(index=False).encode("utf-8"), file_name="planning_gantt.csv", mime="text/csv")
 
 def calculer_temps(commande_df, base_df):
     total = 0

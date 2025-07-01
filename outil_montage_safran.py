@@ -3,13 +3,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, time
 import plotly.express as px
-import io
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
 
 # --- Fonctions Utilitaires ---
-
 def trouver_disponibilite(date_jour, h_debut_jour, h_fin_jour, planning, temps_requis):
     debut_jour = datetime.combine(date_jour, h_debut_jour)
     fin_jour = datetime.combine(date_jour, h_fin_jour)
@@ -47,7 +46,10 @@ def trouver_prochaine_dispo(temps_total_minutes):
     if not st.session_state.admin_planning:
         return None, None
 
-    planning_df = pd.DataFrame(st.session_state.admin_planning, columns=["date", "heure_debut", "heure_fin", "nom"])
+    planning_df = pd.DataFrame(
+        st.session_state.admin_planning,
+        columns=["date", "heure_debut", "heure_fin", "nom"]
+    )
     planning_df["date"] = pd.to_datetime(planning_df["date"]).dt.date
 
     date_actuelle = datetime.today().date()
@@ -64,36 +66,36 @@ def afficher_gantt(planning):
         st.warning("Aucune donnée à afficher dans le Gantt.")
         return
 
-    df_gantt = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
-    df_gantt["Début"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_debut"], errors='coerce')
-    df_gantt["Fin"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_fin"], errors='coerce')
-    df_gantt.dropna(subset=["Début", "Fin"], inplace=True)
+    try:
+        df_gantt = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
+        df_gantt["Début"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_debut"], errors='coerce')
+        df_gantt["Fin"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_fin"], errors='coerce')
+        df_gantt.dropna(subset=["Début", "Fin"], inplace=True)
 
-    if df_gantt.empty:
-        st.warning("Aucune donnée valide pour le Gantt.")
-        return
+        if df_gantt.empty:
+            st.warning("Aucune donnée valide pour le Gantt.")
+            return
 
-    df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
-    df_gantt["Tâche"] = df_gantt["nom"]
+        df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
+        df_gantt["Tâche"] = df_gantt["nom"]
 
-    fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="📅 Planning Gantt par jour")
-    fig.update_yaxes(autorange="reversed", title="Jour")
-    fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
-    fig.update_layout(height=600, title_font_size=22)
+        fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="🗕️ Planning Gantt par jour")
+        fig.update_yaxes(autorange="reversed", title="Jour")
+        fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
+        fig.update_layout(height=600, title_font_size=22)
 
-    # ✅ Affichage du Gantt
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
-    # ✅ Télécharger le planning en CSV
-    df_csv = df_gantt[["date", "heure_debut", "heure_fin", "nom"]]
-    st.download_button(
-        "📥 Télécharger le planning (CSV)",
-        data=df_csv.to_csv(index=False).encode("utf-8"),
-        file_name="planning_gantt.csv",
-        mime="text/csv"
-    )
+        st.download_button(
+            "📅 Télécharger le planning (CSV)",
+            data=df_gantt[["date", "heure_debut", "heure_fin", "nom"]].to_csv(index=False).encode("utf-8"),
+            file_name="planning_gantt.csv",
+            mime="text/csv"
+        )
 
-    
+    except Exception as e:
+        st.error(f"❌ Erreur d'affichage Gantt : {e}")
+
 def calculer_temps(commande_df, base_df):
     total = 0
     erreurs = []
@@ -128,14 +130,15 @@ def calculer_temps(commande_df, base_df):
 
     return int(total), erreurs
 
-# --- Interface principale ---
-
+# --- Initialisation Session ---
 if 'admin_planning' not in st.session_state:
     st.session_state.admin_planning = []
+if 'commande_df' not in st.session_state:
+    st.session_state.commande_df = pd.DataFrame()
 
+# --- Interface principale ---
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])
 
-# --- Espace Administrateur ---
 if role == "Administrateur":
     mdp = st.sidebar.text_input("🔐 Entrez le mot de passe :", type="password")
     if mdp != "safran123":
@@ -171,29 +174,27 @@ if role == "Administrateur":
         df_taches = pd.DataFrame(st.session_state.admin_planning, columns=["Date", "Heure début", "Heure fin", "Description"])
         st.dataframe(df_taches)
 
-        col_reset, col_save = st.columns(2)
-        if col_reset.button("🔄 Réinitialiser le planning"):
-            st.session_state.admin_planning = []
-            st.success("Planning vidé.")
-
-        if col_save.download_button("💾 Sauvegarder le planning", data=df_taches.to_csv(index=False).encode('utf-8'), file_name="planning_admin.csv", mime="text/csv"):
-            st.success("Planning sauvegardé.")
-
         with st.expander("📊 Diagramme de Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
 
-# --- Espace Utilisateur ---
+        if st.button("🔄 Réinitialiser le planning"):
+            st.session_state.admin_planning = []
+            st.success("Planning vidé.")
+
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
 
     try:
         base_df = pd.read_csv("Test_1.csv")
         base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
+
         if 'temps_montage' not in base_df.columns:
             st.error("❌ La base doit contenir 'temps_montage'")
             st.stop()
+
         base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
         st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
+
     except Exception as e:
         st.error(f"❌ Erreur base: {str(e)}")
         st.stop()
@@ -207,14 +208,13 @@ elif role == "Utilisateur":
             st.success("✅ Commande importée avec succès.")
             st.dataframe(commande_df.head())
         except Exception as e:
-            st.error(f" Erreur lecture fichier : {str(e)}")
-            st.code(commande_file.getvalue().decode('utf-8')[:300])
+            st.error(f"🚥 Erreur lecture fichier : {str(e)}")
             st.stop()
 
-    if "commande_df" in st.session_state and not st.session_state["commande_df"].empty:
+    if not st.session_state.commande_df.empty:
         if st.button("⏱ Calculer", type="primary"):
             with st.spinner(" Analyse en cours..."):
-                commande_df = st.session_state["commande_df"]
+                commande_df = st.session_state.commande_df
                 total, erreurs = calculer_temps(commande_df, base_df)
 
                 if total > 0:
@@ -224,11 +224,12 @@ elif role == "Utilisateur":
 
                     debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
                     if debut_dispo and fin_dispo:
-                        st.success(f"📆 Disponible le **{debut_dispo.strftime('%A %d/%m/%Y à %H:%M')}** jusqu'à {fin_dispo.strftime('%H:%M')}")
+                        date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
+                        st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
                         nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client")
                         if st.button("📌 Ajouter au planning"):
                             st.session_state.admin_planning.append((debut_dispo.date().isoformat(), debut_dispo.strftime("%H:%M"), fin_dispo.strftime("%H:%M"), nom_tache))
-                            st.success("✅ Tâche ajoutée au planning.")
+                            st.success("Tâche ajoutée au planning.")
                             st.rerun()
                     else:
                         st.error("❌ Aucune disponibilité trouvée.")

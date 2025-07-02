@@ -231,29 +231,35 @@ elif role == "Utilisateur":
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
 
-                        # **Formulaire utilisateur pour ajouter la tâche (attention au scope!)**
-                        with st.form("ajout_tache_form"):
-                            nom_tache = st.text_input("📄 Nom de la tâche :", "Montage client")
-                            date_tache = st.date_input("📅 Date", value=debut_dispo.date())
-                            col1, col2 = st.columns(2)
-                            heure_debut = col1.time_input("Heure début", value=debut_dispo.time())
-                            heure_fin = col2.time_input("Heure fin", value=fin_dispo.time())
+                    # On sauvegarde cette dispo dans session_state
+                        st.session_state.debut_suggere = debut_dispo
+                        st.session_state.fin_suggere = fin_dispo
+                        st.session_state.duree_suggeree = total
 
-                            ajouter = st.form_submit_button("📌 Ajouter au planning")
+# On affiche toujours le formulaire si une dispo a été calculée
+    if "debut_suggere" in st.session_state and "fin_suggere" in st.session_state:
+        with st.form("ajout_tache_form"):
+            st.subheader("📌 Ajouter cette tâche au planning")
+            nom_tache = st.text_input("📄 Nom de la tâche :", "Montage client")
+            date_tache = st.date_input("📅 Date", value=st.session_state.debut_suggere.date())
+            col1, col2 = st.columns(2)
+            heure_debut = col1.time_input("Heure début", value=st.session_state.debut_suggere.time())
+            heure_fin = col2.time_input("Heure fin", value=st.session_state.fin_suggere.time())
 
-                            if ajouter:
-                                if heure_debut >= heure_fin:
-                                    st.error("L'heure de fin doit être après le début.")
-                                elif not nom_tache.strip():
-                                    st.error("Veuillez saisir un nom.")
-                                else:
-                                    st.session_state.admin_planning.append((
-                                        date_tache.strftime("%Y-%m-%d"),
-                                        heure_debut.strftime("%H:%M"),
-                                        heure_fin.strftime("%H:%M"),
-                                        nom_tache.strip()
-                                    ))
-                                    st.success("✅ Tâche ajoutée avec succès.")
+            ajouter = st.form_submit_button("✅ Ajouter au planning")
+            if ajouter:
+                if heure_debut >= heure_fin:
+                    st.error("L'heure de fin doit être après le début.")
+                elif not nom_tache.strip():
+                    st.error("Veuillez saisir un nom.")
+                else:
+                    st.session_state.admin_planning.append((
+                        date_tache.strftime("%Y-%m-%d"),
+                        heure_debut.strftime("%H:%M"),
+                        heure_fin.strftime("%H:%M"),
+                        nom_tache.strip()
+                    ))
+                    st.success("✅ Tâche ajoutée avec succès.")
 
     st.write("📦 DEBUG - Tâches en mémoire :", st.session_state.admin_planning)
 

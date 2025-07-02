@@ -69,68 +69,62 @@ def afficher_gantt(planning):
         return
 
     try:
-        df_gantt = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
-        df_gantt["Début"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_debut"], errors='coerce')
-        df_gantt["Fin"] = pd.to_datetime(df_gantt["date"] + " " + df_gantt["heure_fin"], errors='coerce')
-        df_gantt.dropna(subset=["Début", "Fin"], inplace=True)
+        df = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
+        df["Début"] = pd.to_datetime(df["date"] + " " + df["heure_debut"], errors='coerce')
+        df["Fin"] = pd.to_datetime(df["date"] + " " + df["heure_fin"], errors='coerce')
+        df.dropna(subset=["Début", "Fin"], inplace=True)
 
-        if df_gantt.empty:
+        if df.empty:
             st.warning("Aucune donnée valide pour le Gantt.")
             return
 
-        df_gantt["Jour"] = pd.to_datetime(df_gantt["date"]).dt.strftime("%A %d/%m")
-        df_gantt["Tâche"] = df_gantt["nom"]
+        # ✅ Ajouter colonnes utiles
+        df["DateStr"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m")
+        df["HeureDébut"] = df["Début"].dt.time.astype(str)
+        df["HeureFin"] = df["Fin"].dt.time.astype(str)
 
-        fig = px.timeline(df_gantt, x_start="Début", x_end="Fin", y="Jour", color="Tâche", title="📅 Planning Gantt par jour")
-        fig.update_yaxes(autorange="reversed", title="Jour")
-        fig.update_xaxes(tickformat="%H:%M", dtick=3600000)
-        fig.update_layout(height=600, title_font_size=22)
+        # ✅ Gantt horizontal = échanger les axes
+        fig = px.timeline(
+            df,
+            y="Début",  # Position verticale par heure
+            x_start="date",
+            x_end="date",
+            color="nom",
+            hover_name="nom",
+            title="📅 Planning hebdomadaire",
+        )
+
+        # ✅ Adapter le format de l'axe des Y (heures)
+        fig.update_yaxes(
+            tickformat="%H:%M",
+            title="Heure de la journée",
+            range=[
+                pd.to_datetime("08:00").timestamp() * 1000,
+                pd.to_datetime("17:00").timestamp() * 1000
+            ],
+        )
+
+        # ✅ Axe X = dates sur 7 jours
+        today = datetime.today().date()
+        end_day = today + timedelta(days=7)
+        fig.update_xaxes(
+            title="Jours de la semaine",
+            tickformat="%d/%m",
+            range=[str(today), str(end_day)],
+            side="top"
+        )
+
+        fig.update_layout(
+            height=600,
+            title_font_size=20,
+            margin=dict(l=20, r=20, t=60, b=20)
+        )
 
         st.plotly_chart(fig, use_container_width=True)
 
-        st.download_button(
-            label="📅 Télécharger le planning CSV",
-            data=df_gantt[["date", "heure_debut", "heure_fin", "nom"]].to_csv(index=False).encode("utf-8"),
-            file_name="planning_gantt.csv",
-            mime="text/csv"
-        )
-
     except Exception as e:
-        st.error(f"❌ Erreur lors de l'affichage du Gantt : {e}")
+        st.error(f"❌ Erreur Gantt : {e}")
 
-def calculer_temps(commande_df, base_df):
-    total = 0
-    erreurs = []
-    commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-    base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-
-    if 'reference' not in commande_df.columns or 'quantite' not in commande_df.columns:
-        erreurs.append("Colonnes 'reference' ou 'quantite' manquantes dans la commande")
-        return 0, erreurs
-
-    if 'reference' not in base_df.columns or 'temps_montage' not in base_df.columns:
-        erreurs.append("Colonnes manquantes dans la base")
-        return 0, erreurs
-
-    commande_df['reference'] = commande_df['reference'].astype(str).str.strip().str.upper()
-    base_df['reference'] = base_df['reference'].astype(str).str.strip().str.upper()
-    commande_df = commande_df.dropna(subset=['reference'])
-    commande_df = commande_df[commande_df['reference'].str.strip() != '']
-
-    try:
-        commande_df['quantite'] = pd.to_numeric(commande_df['quantite'], errors='coerce').fillna(0).astype(int)
-    except Exception as e:
-        erreurs.append(f"Conversion 'quantite' invalide : {e}")
-        return 0, erreurs
-
-    df_merge = commande_df.merge(base_df[['reference', 'temps_montage']], on='reference', how='left')
-    df_merge['temps_total'] = df_merge['quantite'] * df_merge['temps_montage']
-    total = df_merge['temps_total'].sum()
-    missing_refs = df_merge[df_merge['temps_montage'].isna()]['reference'].unique()
-    for ref in missing_refs:
-        erreurs.append(f"Référence manquante dans la base : {ref}")
-
-    return int(total), erreurs
 
 # --- Main Interface ---
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])

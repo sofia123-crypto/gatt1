@@ -239,23 +239,15 @@ elif role == "Utilisateur":
                                 nom_tache
                             ))
                             st.success("Tâche ajoutée au planning.")
-
-    # Forcer le rechargement pour actualiser le Gantt
-                            st.session_state.commande_df = pd.DataFrame()  # Réinitialiser pour éviter recalcul inutile
+                            st.session_state.commande_df = pd.DataFrame()
                             st.rerun()
-
-
 
                 if erreurs:
                     st.warning("⚠️ Alertes :")
                     for e in erreurs:
                         st.write(f"- {e}")
-    # Affichage du Gantt même si aucune commande n'est chargée
-if st.session_state.admin_planning:
-    with st.expander("📊 Visualisation du planning Gantt", expanded=True):
-        afficher_gantt(st.session_state.admin_planning)
 
-        
-    else:
-        st.info("📅 Veuillez importer une commande.")
-
+    # Affichage du Gantt pour les utilisateurs également
+    if st.session_state.admin_planning:
+        with st.expander("📊 Visualisation du planning Gantt", expanded=True):
+            afficher_gantt(st.session_state.admin_planning)

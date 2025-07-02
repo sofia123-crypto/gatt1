@@ -158,15 +158,17 @@ if role == "Administrateur":
         tache_fin = col2.time_input("Heure fin", time(10, 0), key="admin_fin")
         tache_nom = col3.text_input("Nom de la tâche", "Réunion", key="admin_nom")
 
-        if st.form_submit_button("Ajouter la tâche"):
-            if tache_debut >= tache_fin:
-                st.error("L'heure de fin doit être après l'heure de début.")
-            elif not tache_nom:
-                st.error("Veuillez saisir un nom de tâche.")
-            else:
-                st.session_state.admin_planning.append((str(date_plan), tache_debut.strftime("%H:%M"), tache_fin.strftime("%H:%M"), tache_nom))
-                st.success("Tâche ajoutée avec succès.")
-                st.experimental_rerun()
+    if st.form_submit_button("Ajouter la tâche"):
+        if tache_debut >= tache_fin:
+            st.error("L'heure de fin doit être après l'heure de début.")
+        elif not tache_nom:
+            st.error("Veuillez saisir un nom de tâche.")
+    else:
+        st.session_state.admin_planning.append((str(date_plan), tache_debut.strftime("%H:%M"), tache_fin.strftime("%H:%M"), tache_nom))
+        st.success("Tâche ajoutée avec succès.")
+        # **Supprimer st.experimental_rerun() d'ici**
+        # au lieu de ça, rien ou tu peux forcer la page à se recharger en mettant un petit bouton manuellement si besoin
+
 
     if st.session_state.admin_planning:
         st.subheader("📋 Tâches planifiées")

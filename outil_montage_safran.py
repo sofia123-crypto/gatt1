@@ -90,7 +90,7 @@ def afficher_gantt(planning):
             h_fin_float = heure_fin.hour + heure_fin.minute / 60
 
             fig.add_trace(go.Bar(
-                x=[row["date"]],
+                x=[pd.to_datetime(row["date"]).strftime("%d/%m")],
                 y=[h_fin_float - h_debut_float],
                 base=h_debut_float,
                 width=0.6,

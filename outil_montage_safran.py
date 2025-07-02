@@ -88,7 +88,7 @@ def afficher_gantt(planning):
         st.plotly_chart(fig, use_container_width=True)
 
         st.download_button(
-            label="📥 Télécharger le planning CSV",
+            label="📅 Télécharger le planning CSV",
             data=df_gantt[["date", "heure_debut", "heure_fin", "nom"]].to_csv(index=False).encode("utf-8"),
             file_name="planning_gantt.csv",
             mime="text/csv"
@@ -131,13 +131,7 @@ def calculer_temps(commande_df, base_df):
 
     return int(total), erreurs
 
-# --- Initialisation ---
-if 'admin_planning' not in st.session_state:
-    st.session_state.admin_planning = []
-if 'commande_df' not in st.session_state:
-    st.session_state.commande_df = pd.DataFrame()
-
-# --- Interface ---
+# --- Interface Utilisateur / Administrateur ---
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])
 
 if role == "Administrateur":
@@ -161,22 +155,19 @@ if role == "Administrateur":
         tache_fin = col2.time_input("Heure fin", time(10, 0), key="admin_fin")
         tache_nom = col3.text_input("Nom de la tâche", "Réunion", key="admin_nom")
 
-    if st.form_submit_button("Ajouter la tâche"):
-        if tache_debut >= tache_fin:
-            st.error("L'heure de fin doit être après l'heure de début.")
-        elif not tache_nom:
-            st.error("Veuillez saisir un nom de tâche.")
-        else:
-            if "admin_planning" not in st.session_state:
-                st.session_state.admin_planning = []
-
-            st.session_state.admin_planning.append((
-                str(date_plan),
-                tache_debut.strftime("%H:%M"),
-                tache_fin.strftime("%H:%M"),
-                tache_nom
-            ))
-            st.success("Tâche ajoutée avec succès.")
+        if st.form_submit_button("Ajouter la tâche"):
+            if tache_debut >= tache_fin:
+                st.error("L'heure de fin doit être après l'heure de début.")
+            elif not tache_nom:
+                st.error("Veuillez saisir un nom de tâche.")
+            else:
+                st.session_state.admin_planning.append((
+                    str(date_plan),
+                    tache_debut.strftime("%H:%M"),
+                    tache_fin.strftime("%H:%M"),
+                    tache_nom
+                ))
+                st.success("Tâche ajoutée avec succès.")
 
     if st.session_state.admin_planning:
         st.subheader("📋 Tâches planifiées")
@@ -192,9 +183,8 @@ if role == "Administrateur":
             st.experimental_rerun()
 
 elif role == "Utilisateur":
-    st.info("ℹ️ Calcul des temps de montage - Version 2.0")
+    st.info("ℹ️ Calcul des temps de montage - Version utilisateur")
 
-    # Chargement base
     try:
         base_df = pd.read_csv("Test_1.csv")
         base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
@@ -222,8 +212,8 @@ elif role == "Utilisateur":
             st.error(f"🚥 Erreur lecture fichier : {str(e)}")
             st.stop()
 
-    if not st.session_state.commande_df.empty:
-        if st.button("⏱ Calculer", type="primary"):
+    if "commande_df" in st.session_state and not st.session_state.commande_df.empty:
+        if st.button("⏱ Calculer"):
             with st.spinner(" Analyse en cours..."):
                 commande_df = st.session_state.commande_df
                 total, erreurs = calculer_temps(commande_df, base_df)
@@ -238,7 +228,6 @@ elif role == "Utilisateur":
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
 
-                        # Formulaire ajout tâche utilisateur
                         with st.form("ajout_tache_form"):
                             nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
                             date_tache = st.date_input("📅 Date de la tâche", value=debut_dispo.date())
@@ -249,7 +238,6 @@ elif role == "Utilisateur":
                             ajout = st.form_submit_button("📌 Ajouter au planning")
 
                             if ajout:
-                                # Ajouter la tâche
                                 st.session_state.admin_planning.append((
                                     date_tache.strftime("%Y-%m-%d"),
                                     heure_debut.strftime("%H:%M"),
@@ -258,11 +246,8 @@ elif role == "Utilisateur":
                                 ))
                                 st.success("Tâche ajoutée au planning.")
 
-    # Affichage Gantt utilisateur hors form
     if st.session_state.admin_planning:
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
-
     else:
         st.info("📅 Veuillez importer une commande.")
-

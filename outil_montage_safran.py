@@ -64,8 +64,12 @@ def trouver_prochaine_dispo(temps_total_minutes):
 
     return None, None
 def afficher_gantt(planning):
+    import pandas as pd
+    import plotly.graph_objects as go
+    from datetime import datetime, timedelta
+
     if not planning:
-        st.warning("Aucune donnée à afficher dans le Gantt.")
+        st.warning("Aucune donnée à afficher.")
         return
 
     try:
@@ -74,9 +78,10 @@ def afficher_gantt(planning):
         df["Fin"] = pd.to_datetime(df["date"] + " " + df["heure_fin"], errors='coerce')
         df.dropna(subset=["Début", "Fin"], inplace=True)
 
-        if df.empty:
-            st.warning("Aucune donnée valide pour le Gantt.")
-            return
+        # 🗓 Générer les 7 jours à partir d’aujourd’hui
+        today = datetime.today().date()
+        semaine = [today + timedelta(days=i) for i in range(7)]
+        jours_str = [jour.strftime("%d/%m") for jour in semaine]
 
         palette = px.colors.qualitative.Plotly
         couleurs = {nom: palette[i % len(palette)] for i, nom in enumerate(df["nom"].unique())}
@@ -84,13 +89,18 @@ def afficher_gantt(planning):
         fig = go.Figure()
 
         for _, row in df.iterrows():
+            jour_obj = pd.to_datetime(row["date"]).date()
+            if jour_obj not in semaine:
+                continue  # Ignorer les jours hors de la semaine affichée
+
+            jour_str = jour_obj.strftime("%d/%m")
             heure_debut = datetime.strptime(row["heure_debut"], "%H:%M")
             heure_fin = datetime.strptime(row["heure_fin"], "%H:%M")
             h_debut_float = heure_debut.hour + heure_debut.minute / 60
             h_fin_float = heure_fin.hour + heure_fin.minute / 60
 
             fig.add_trace(go.Bar(
-                x=[pd.to_datetime(row["date"]).strftime("%d/%m")],
+                x=[jour_str],
                 y=[h_fin_float - h_debut_float],
                 base=h_debut_float,
                 width=0.6,
@@ -104,27 +114,33 @@ def afficher_gantt(planning):
             ))
 
         fig.update_layout(
-            barmode="stack",
-            title="📅 Planning (Heures sur Y, Dates sur X)",
-            xaxis_title="Date",
-            yaxis_title="Heure",
+            title="📅 Planning Hebdomadaire",
+            xaxis=dict(
+                title="Jour",
+                categoryorder="array",
+                categoryarray=jours_str,
+                tickvals=jours_str,
+                ticktext=jours_str,
+                side="top"  # ✅ Les dates en haut
+            ),
             yaxis=dict(
+                title="Heure",
                 tickmode="array",
                 tickvals=list(range(8, 18)),
                 ticktext=[f"{h:02d}:00" for h in range(8, 18)],
-                autorange="reversed",  # 08:00 en haut
+                autorange="reversed",  # ✅ 08:00 en haut
                 range=[8, 17]
             ),
             height=600,
+            margin=dict(l=60, r=30, t=60, b=60),
             showlegend=True,
-            margin=dict(l=60, r=30, t=60, b=60)
+            barmode="stack"
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
-        st.error(f"❌ Erreur lors de l'affichage du Gantt : {e}")
-
+        st.error(f"❌ Erreur affichage Gantt : {e}")
 
 
 

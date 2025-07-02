@@ -12,6 +12,30 @@ st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide
 st.title("🔧 Estimation du Temps de Montage")
 
 # --- Utility Functions ---
+def calculer_temps(commande_df, base_df):
+    total_minutes = 0
+    erreurs = []
+
+    for _, ligne in commande_df.iterrows():
+        ref = str(ligne["reference"]).strip()
+        qte = ligne.get("quantite", 1)
+
+        try:
+            qte = int(qte)
+        except:
+            erreurs.append(f"❌ Quantité invalide pour {ref}")
+            continue
+
+        filtre = base_df[base_df["reference"].str.strip() == ref]
+
+        if not filtre.empty:
+            temps = int(filtre.iloc[0]["temps_montage"])
+            total_minutes += temps * qte
+        else:
+            erreurs.append(f"❌ Référence inconnue : {ref}")
+
+    return total_minutes, erreurs
+
 def trouver_disponibilite(date_jour, h_debut_jour, h_fin_jour, planning, temps_requis):
     debut_jour = datetime.combine(date_jour, h_debut_jour)
     fin_jour = datetime.combine(date_jour, h_fin_jour)

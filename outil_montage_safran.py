@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
 
+# Initialisation de la liste admin_planning dans session_state si elle n'existe pas
 if "admin_planning" not in st.session_state:
     st.session_state.admin_planning = []
 
@@ -161,6 +162,9 @@ if role == "Administrateur":
             elif not tache_nom:
                 st.error("Veuillez saisir un nom de tâche.")
             else:
+                if "admin_planning" not in st.session_state:
+                    st.session_state.admin_planning = []
+
                 st.session_state.admin_planning.append((
                     str(date_plan),
                     tache_debut.strftime("%H:%M"),
@@ -249,5 +253,6 @@ elif role == "Utilisateur":
     if st.session_state.admin_planning:
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
+
     else:
         st.info("📅 Veuillez importer une commande.")

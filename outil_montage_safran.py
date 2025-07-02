@@ -188,13 +188,32 @@ if role == "Administrateur":
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
 
-    # Chargement base de données...
-    # (code inchangé)
+    try:
+        base_df = pd.read_csv("Test_1.csv")
+        base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
+
+        if 'temps_montage' not in base_df.columns:
+            st.error("❌ La base doit contenir 'temps_montage'")
+            st.stop()
+
+        base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
+        st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
+
+    except Exception as e:
+        st.error(f"❌ Erreur base: {str(e)}")
+        st.stop()
 
     commande_file = st.file_uploader("📄 Déposer votre commande CSV", type="csv")
     if commande_file:
-        # Lecture commande ...
-        # (code inchangé)
+        try:
+            commande_df = pd.read_csv(commande_file)
+            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
+            st.session_state.commande_df = commande_df
+            st.success("✅ Commande importée avec succès.")
+            st.dataframe(commande_df.head())
+        except Exception as e:
+            st.error(f"🚥 Erreur lecture fichier : {str(e)}")
+            st.stop()
 
     if "commande_df" in st.session_state and not st.session_state.commande_df.empty:
         if st.button("⏱ Calculer"):

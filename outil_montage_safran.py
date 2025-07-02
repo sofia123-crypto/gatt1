@@ -3,14 +3,14 @@ import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
 
-# Initialisation de la liste admin_planning dans session_state si elle n'existe pas
+# Initialize admin_planning list in session state if not present
 if "admin_planning" not in st.session_state:
     st.session_state.admin_planning = []
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
 
-# --- Fonctions Utilitaires ---
+# --- Utility Functions ---
 def trouver_disponibilite(date_jour, h_debut_jour, h_fin_jour, planning, temps_requis):
     debut_jour = datetime.combine(date_jour, h_debut_jour)
     fin_jour = datetime.combine(date_jour, h_fin_jour)
@@ -132,7 +132,7 @@ def calculer_temps(commande_df, base_df):
 
     return int(total), erreurs
 
-# --- Interface Utilisateur / Administrateur ---
+# --- Main Interface ---
 role = st.sidebar.radio("👤 Choisissez votre rôle :", ["Utilisateur", "Administrateur"])
 
 if role == "Administrateur":
@@ -144,14 +144,16 @@ if role == "Administrateur":
     st.success("✅ Accès administrateur accordé")
     st.header("📅 Configuration du Planning")
 
+    # Make sure date_plan is defined here at top level for admin
     date_plan = st.date_input("Date", value=datetime.today())
+
     h_debut, h_fin = st.columns(2)
     heure_debut = h_debut.time_input("Début de journée", time(8, 0))
     heure_fin = h_fin.time_input("Fin de journée", time(17, 0))
 
     with st.form("form_admin"):
         st.subheader("➕ Ajouter une tâche")
-        col1, col2, col3 = st.columns([1, 1, 2])
+        col1, col2, col3 = st.columns([1,1,2])
         tache_debut = col1.time_input("Heure début", time(9, 0), key="admin_debut")
         tache_fin = col2.time_input("Heure fin", time(10, 0), key="admin_fin")
         tache_nom = col3.text_input("Nom de la tâche", "Réunion", key="admin_nom")
@@ -162,9 +164,6 @@ if role == "Administrateur":
             elif not tache_nom:
                 st.error("Veuillez saisir un nom de tâche.")
             else:
-                if "admin_planning" not in st.session_state:
-                    st.session_state.admin_planning = []
-
                 st.session_state.admin_planning.append((
                     str(date_plan),
                     tache_debut.strftime("%H:%M"),

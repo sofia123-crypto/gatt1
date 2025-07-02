@@ -3,6 +3,9 @@ import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
 
+if "admin_planning" not in st.session_state:
+    st.session_state.admin_planning = []
+
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
 
@@ -163,12 +166,17 @@ if role == "Administrateur":
             st.error("L'heure de fin doit être après l'heure de début.")
         elif not tache_nom:
             st.error("Veuillez saisir un nom de tâche.")
-    else:
-        st.session_state.admin_planning.append((str(date_plan), tache_debut.strftime("%H:%M"), tache_fin.strftime("%H:%M"), tache_nom))
-        st.success("Tâche ajoutée avec succès.")
-        # **Supprimer st.experimental_rerun() d'ici**
-        # au lieu de ça, rien ou tu peux forcer la page à se recharger en mettant un petit bouton manuellement si besoin
+        else:
+            if "admin_planning" not in st.session_state:
+                st.session_state.admin_planning = []
 
+            st.session_state.admin_planning.append((
+                str(date_plan),
+                tache_debut.strftime("%H:%M"),
+                tache_fin.strftime("%H:%M"),
+                tache_nom
+            ))
+            st.success("Tâche ajoutée avec succès.")
 
     if st.session_state.admin_planning:
         st.subheader("📋 Tâches planifiées")

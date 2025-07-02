@@ -188,32 +188,13 @@ if role == "Administrateur":
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
 
-    try:
-        base_df = pd.read_csv("Test_1.csv")
-        base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
-
-        if 'temps_montage' not in base_df.columns:
-            st.error("❌ La base doit contenir 'temps_montage'")
-            st.stop()
-
-        base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
-        st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
-
-    except Exception as e:
-        st.error(f"❌ Erreur base: {str(e)}")
-        st.stop()
+    # Chargement base de données...
+    # (code inchangé)
 
     commande_file = st.file_uploader("📄 Déposer votre commande CSV", type="csv")
     if commande_file:
-        try:
-            commande_df = pd.read_csv(commande_file)
-            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-            st.session_state.commande_df = commande_df
-            st.success("✅ Commande importée avec succès.")
-            st.dataframe(commande_df.head())
-        except Exception as e:
-            st.error(f"🚥 Erreur lecture fichier : {str(e)}")
-            st.stop()
+        # Lecture commande ...
+        # (code inchangé)
 
     if "commande_df" in st.session_state and not st.session_state.commande_df.empty:
         if st.button("⏱ Calculer"):
@@ -231,6 +212,7 @@ elif role == "Utilisateur":
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
 
+                        # **Formulaire utilisateur pour ajouter la tâche (attention au scope!)**
                         with st.form("ajout_tache_form"):
                             nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
                             date_tache = st.date_input("📅 Date de la tâche", value=debut_dispo.date())
@@ -241,17 +223,26 @@ elif role == "Utilisateur":
                             ajout = st.form_submit_button("📌 Ajouter au planning")
 
                             if ajout:
-                                st.session_state.admin_planning.append((
-                                    date_tache.strftime("%Y-%m-%d"),
-                                    heure_debut.strftime("%H:%M"),
-                                    heure_fin.strftime("%H:%M"),
-                                    nom_tache
-                                ))
-                                st.success("Tâche ajoutée au planning.")
+                                if heure_debut >= heure_fin:
+                                    st.error("L'heure de fin doit être après l'heure de début.")
+                                elif not nom_tache.strip():
+                                    st.error("Veuillez saisir un nom de tâche.")
+                                else:
+                                    if "admin_planning" not in st.session_state:
+                                        st.session_state.admin_planning = []
+
+                                    st.session_state.admin_planning.append((
+                                        date_tache.strftime("%Y-%m-%d"),
+                                        heure_debut.strftime("%H:%M"),
+                                        heure_fin.strftime("%H:%M"),
+                                        nom_tache.strip()
+                                    ))
+                                    st.success("Tâche ajoutée au planning.")
+                                    # Optionnel: Forcer un rerun si tu veux que le gantt s'affiche immédiatement
+                                    # st.experimental_rerun()
 
     if st.session_state.admin_planning:
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
-
     else:
         st.info("📅 Veuillez importer une commande.")

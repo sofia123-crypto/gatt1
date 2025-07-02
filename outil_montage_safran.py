@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Initialize admin_planning list in session state if not present
 if "admin_planning" not in st.session_state:
@@ -63,6 +64,8 @@ def trouver_prochaine_dispo(temps_total_minutes):
 
     return None, None
 
+import plotly.graph_objects as go
+
 def afficher_gantt(planning):
     if not planning:
         st.warning("Aucune donnée à afficher dans le Gantt.")
@@ -78,52 +81,63 @@ def afficher_gantt(planning):
             st.warning("Aucune donnée valide pour le Gantt.")
             return
 
-        # ✅ Ajouter colonnes utiles
-        df["DateStr"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m")
-        df["HeureDébut"] = df["Début"].dt.time.astype(str)
-        df["HeureFin"] = df["Fin"].dt.time.astype(str)
-
-        # ✅ Gantt horizontal = échanger les axes
-        fig = px.timeline(
-            df,
-            y="Début",  # Position verticale par heure
-            x_start="date",
-            x_end="date",
-            color="nom",
-            hover_name="nom",
-            title="📅 Planning hebdomadaire",
-        )
-
-        # ✅ Adapter le format de l'axe des Y (heures)
-        fig.update_yaxes(
-            tickformat="%H:%M",
-            title="Heure de la journée",
-            range=[
-                pd.to_datetime("08:00").timestamp() * 1000,
-                pd.to_datetime("17:00").timestamp() * 1000
-            ],
-        )
-
-        # ✅ Axe X = dates sur 7 jours
+        # Générer une semaine complète à partir d’aujourd’hui
         today = datetime.today().date()
-        end_day = today + timedelta(days=7)
-        fig.update_xaxes(
-            title="Jours de la semaine",
-            tickformat="%d/%m",
-            range=[str(today), str(end_day)],
-            side="top"
-        )
+        semaine = [today + timedelta(days=i) for i in range(7)]
+        jours_str = [d.strftime("%d/%m") for d in semaine]
+
+        # Créer figure
+        fig = go.Figure()
+
+        # Générer une couleur unique par tâche
+        couleurs_taches = {}
+        palette = px.colors.qualitative.Plotly
+        taches_uniques = df["nom"].unique()
+
+        for i, tache in enumerate(taches_uniques):
+            couleurs_taches[tache] = palette[i % len(palette)]
+
+        # Ajouter les tâches
+        for _, row in df.iterrows():
+            date_str = row["Début"].date().strftime("%d/%m")
+            fig.add_trace(go.Scatter(
+                x=[date_str, date_str],
+                y=[row["heure_debut"], row["heure_fin"]],
+                mode="lines",
+                line=dict(width=20, color=couleurs_taches[row["nom"]]),
+                name=row["nom"],
+                hoverinfo="text",
+                text=f"<b>{row['nom']}</b><br>{row['heure_debut']} - {row['heure_fin']}"
+            ))
 
         fig.update_layout(
+            title="📅 Planning hebdomadaire",
+            xaxis=dict(
+                title="Jour",
+                type="category",
+                categoryorder="array",
+                categoryarray=jours_str,
+                tickmode="array",
+                tickvals=jours_str,
+                ticktext=jours_str
+            ),
+            yaxis=dict(
+                title="Heure de la journée",
+                autorange="reversed",
+                tickformat="%H:%M",
+                tickmode="linear",
+                dtick=3600000  # 1 heure
+            ),
+            legend_title="Tâches",
             height=600,
-            title_font_size=20,
-            margin=dict(l=20, r=20, t=60, b=20)
+            margin=dict(l=60, r=20, t=60, b=60)
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
-        st.error(f"❌ Erreur Gantt : {e}")
+        st.error(f"❌ Erreur lors de l'affichage du Gantt : {e}")
+
 
 
 # --- Main Interface ---

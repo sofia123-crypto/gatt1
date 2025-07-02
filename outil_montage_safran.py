@@ -183,7 +183,7 @@ if role == "Administrateur":
             st.experimental_rerun()
 
 elif role == "Utilisateur":
-    st.info("ℹ️ Calcul des temps de montage - Version utilisateur")
+    st.info("ℹ️ Calcul des temps de montage - Version 2.0")
 
     try:
         base_df = pd.read_csv("Test_1.csv")

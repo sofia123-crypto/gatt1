@@ -64,8 +64,6 @@ def trouver_prochaine_dispo(temps_total_minutes):
 
     return None, None
 
-import plotly.graph_objects as go
-
 def afficher_gantt(planning):
     if not planning:
         st.warning("Aucune donnée à afficher dans le Gantt.")
@@ -81,62 +79,63 @@ def afficher_gantt(planning):
             st.warning("Aucune donnée valide pour le Gantt.")
             return
 
-        # Générer une semaine complète à partir d’aujourd’hui
+        # Jours de la semaine à afficher (à partir d'aujourd'hui)
         today = datetime.today().date()
         semaine = [today + timedelta(days=i) for i in range(7)]
         jours_str = [d.strftime("%d/%m") for d in semaine]
 
-        # Créer figure
+        # Préparer la figure
         fig = go.Figure()
-
-        # Générer une couleur unique par tâche
-        couleurs_taches = {}
         palette = px.colors.qualitative.Plotly
-        taches_uniques = df["nom"].unique()
+        couleurs = {nom: palette[i % len(palette)] for i, nom in enumerate(df["nom"].unique())}
 
-        for i, tache in enumerate(taches_uniques):
-            couleurs_taches[tache] = palette[i % len(palette)]
-
-        # Ajouter les tâches
         for _, row in df.iterrows():
-            date_str = row["Début"].date().strftime("%d/%m")
+            jour = row["Début"].date()
+            jour_str = jour.strftime("%d/%m")
+
+            if jour not in semaine:
+                continue  # on ignore les jours hors de la semaine actuelle
+
+            # Convertir les heures sur une même date fictive pour axe Y continu
+            y_debut = datetime.strptime(row["heure_debut"], "%H:%M")
+            y_fin = datetime.strptime(row["heure_fin"], "%H:%M")
+
             fig.add_trace(go.Scatter(
-                x=[date_str, date_str],
-                y=[row["heure_debut"], row["heure_fin"]],
+                x=[jour_str, jour_str],
+                y=[y_debut, y_fin],
                 mode="lines",
-                line=dict(width=20, color=couleurs_taches[row["nom"]]),
+                line=dict(color=couleurs[row["nom"]], width=20),
                 name=row["nom"],
                 hoverinfo="text",
-                text=f"<b>{row['nom']}</b><br>{row['heure_debut']} - {row['heure_fin']}"
+                text=f"{row['nom']}<br>{row['heure_debut']} - {row['heure_fin']}"
             ))
 
         fig.update_layout(
             title="📅 Planning hebdomadaire",
             xaxis=dict(
-                title="Jour",
+                title="Jours de la semaine",
                 type="category",
                 categoryorder="array",
                 categoryarray=jours_str,
-                tickmode="array",
                 tickvals=jours_str,
                 ticktext=jours_str
             ),
             yaxis=dict(
                 title="Heure de la journée",
-                autorange="reversed",
                 tickformat="%H:%M",
-                tickmode="linear",
-                dtick=3600000  # 1 heure
+                range=[datetime.strptime("08:00", "%H:%M"), datetime.strptime("17:00", "%H:%M")],
+                autorange=False
             ),
-            legend_title="Tâches",
             height=600,
-            margin=dict(l=60, r=20, t=60, b=60)
+            margin=dict(l=60, r=20, t=60, b=60),
+            showlegend=True
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Erreur lors de l'affichage du Gantt : {e}")
+
 
 
 

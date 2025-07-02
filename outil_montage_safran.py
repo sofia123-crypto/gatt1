@@ -185,69 +185,39 @@ if role == "Administrateur":
 elif role == "Utilisateur":
     st.info("ℹ️ Calcul des temps de montage - Version 2.0")
 
-    try:
-        base_df = pd.read_csv("Test_1.csv")
-        base_df.columns = base_df.columns.str.strip().str.lower().str.replace(' ', '')
-
-        if 'temps_montage' not in base_df.columns:
-            st.error("❌ La base doit contenir 'temps_montage'")
-            st.stop()
-
-        base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
-        st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
-
-    except Exception as e:
-        st.error(f"❌ Erreur base: {str(e)}")
-        st.stop()
+    # (your base_df loading code remains here...)
 
     commande_file = st.file_uploader("📄 Déposer votre commande CSV", type="csv")
     if commande_file:
-        try:
-            commande_df = pd.read_csv(commande_file)
-            commande_df.columns = commande_df.columns.str.strip().str.lower().str.replace(' ', '').str.replace('\ufeff', '')
-            st.session_state.commande_df = commande_df
-            st.success("✅ Commande importée avec succès.")
-            st.dataframe(commande_df.head())
-        except Exception as e:
-            st.error(f"🚥 Erreur lecture fichier : {str(e)}")
-            st.stop()
+        # (your commande_df loading code...)
 
     if not st.session_state.commande_df.empty:
         if st.button("⏱ Calculer", type="primary"):
-            with st.spinner(" Analyse en cours..."):
-                commande_df = st.session_state.commande_df
-                total, erreurs = calculer_temps(commande_df, base_df)
+            # (your temps calculation code...)
 
-                if total > 0:
-                    heures = total // 60
-                    minutes = total % 60
-                    st.success(f"⏳ Temps total estimé : **{heures}h{minutes:02d}min** ({total} minutes)")
+            if total > 0:
+                # (show total time, disponibilités...)
 
-                    debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
-                    if debut_dispo and fin_dispo:
-                        date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
-                        st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")
+                with st.form("ajout_tache_form"):
+                    nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
+                    date_tache = st.date_input("📅 Date de la tâche", value=datetime.today())
+                    col1, col2 = st.columns(2)
+                    heure_debut = col1.time_input("Heure de début", value=debut_dispo.time())
+                    heure_fin = col2.time_input("Heure de fin", value=fin_dispo.time())
 
-                        nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
-                        ajout = st.button("📌 Ajouter au planning", key="user_ajout")
+                    ajout = st.form_submit_button("📌 Ajouter au planning")
 
-                        if ajout:
-                            st.session_state.admin_planning.append((
-                                debut_dispo.date().isoformat(),
-                                debut_dispo.strftime("%H:%M"),
-                                fin_dispo.strftime("%H:%M"),
-                                nom_tache
-                            ))
-                            st.success("Tâche ajoutée au planning.")
-                            st.session_state.commande_df = pd.DataFrame()
-                            st.rerun()
+                    if ajout:
+                        st.session_state.admin_planning.append((
+                            date_tache.strftime("%Y-%m-%d"),
+                            heure_debut.strftime("%H:%M"),
+                            heure_fin.strftime("%H:%M"),
+                            nom_tache
+                        ))
+                        st.success("Tâche ajoutée au planning.")
 
-                if erreurs:
-                    st.warning("⚠️ Alertes :")
-                    for e in erreurs:
-                        st.write(f"- {e}")
-
-    # Affichage du Gantt pour les utilisateurs également
+        # Afficher le gantt en dehors du form
     if st.session_state.admin_planning:
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
+

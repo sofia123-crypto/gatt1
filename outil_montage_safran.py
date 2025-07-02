@@ -255,6 +255,7 @@ elif role == "Utilisateur":
                                     ))
                                     st.success("✅ Tâche ajoutée avec succès.")
 
+    st.write("📦 DEBUG - Tâches en mémoire :", st.session_state.admin_planning)
 
     if st.session_state.admin_planning:
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):

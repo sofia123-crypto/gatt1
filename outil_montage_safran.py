@@ -63,7 +63,6 @@ def trouver_prochaine_dispo(temps_total_minutes):
             return debut, fin
 
     return None, None
-
 def afficher_gantt(planning):
     if not planning:
         st.warning("Aucune donnée à afficher dans le Gantt.")
@@ -79,62 +78,53 @@ def afficher_gantt(planning):
             st.warning("Aucune donnée valide pour le Gantt.")
             return
 
-        # Jours de la semaine à afficher (à partir d'aujourd'hui)
-        today = datetime.today().date()
-        semaine = [today + timedelta(days=i) for i in range(7)]
-        jours_str = [d.strftime("%d/%m") for d in semaine]
-
-        # Préparer la figure
-        fig = go.Figure()
         palette = px.colors.qualitative.Plotly
         couleurs = {nom: palette[i % len(palette)] for i, nom in enumerate(df["nom"].unique())}
 
+        fig = go.Figure()
+
         for _, row in df.iterrows():
-            jour = row["Début"].date()
-            jour_str = jour.strftime("%d/%m")
+            heure_debut = datetime.strptime(row["heure_debut"], "%H:%M")
+            heure_fin = datetime.strptime(row["heure_fin"], "%H:%M")
+            h_debut_float = heure_debut.hour + heure_debut.minute / 60
+            h_fin_float = heure_fin.hour + heure_fin.minute / 60
 
-            if jour not in semaine:
-                continue  # on ignore les jours hors de la semaine actuelle
-
-            # Convertir les heures sur une même date fictive pour axe Y continu
-            y_debut = datetime.strptime(row["heure_debut"], "%H:%M")
-            y_fin = datetime.strptime(row["heure_fin"], "%H:%M")
-
-            fig.add_trace(go.Scatter(
-                x=[jour_str, jour_str],
-                y=[y_debut, y_fin],
-                mode="lines",
-                line=dict(color=couleurs[row["nom"]], width=20),
+            fig.add_trace(go.Bar(
+                x=[row["date"]],
+                y=[h_fin_float - h_debut_float],
+                base=h_debut_float,
+                width=0.6,
+                marker_color=couleurs[row["nom"]],
                 name=row["nom"],
-                hoverinfo="text",
-                text=f"{row['nom']}<br>{row['heure_debut']} - {row['heure_fin']}"
+                hovertemplate=(
+                    f"{row['nom']}<br>"
+                    f"{row['date']}<br>"
+                    f"{row['heure_debut']} - {row['heure_fin']}<extra></extra>"
+                )
             ))
 
         fig.update_layout(
-            title="📅 Planning hebdomadaire",
-            xaxis=dict(
-                title="Jours de la semaine",
-                type="category",
-                categoryorder="array",
-                categoryarray=jours_str,
-                tickvals=jours_str,
-                ticktext=jours_str
-            ),
+            barmode="stack",
+            title="📅 Planning (Heures sur Y, Dates sur X)",
+            xaxis_title="Date",
+            yaxis_title="Heure",
             yaxis=dict(
-                title="Heure de la journée",
-                tickformat="%H:%M",
-                range=[datetime.strptime("08:00", "%H:%M"), datetime.strptime("17:00", "%H:%M")],
-                autorange=False
+                tickmode="array",
+                tickvals=list(range(8, 18)),
+                ticktext=[f"{h:02d}:00" for h in range(8, 18)],
+                autorange="reversed",  # 08:00 en haut
+                range=[8, 17]
             ),
             height=600,
-            margin=dict(l=60, r=20, t=60, b=60),
-            showlegend=True
+            showlegend=True,
+            margin=dict(l=60, r=30, t=60, b=60)
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Erreur lors de l'affichage du Gantt : {e}")
+
 
 
 

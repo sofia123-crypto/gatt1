@@ -227,6 +227,10 @@ elif role == "Utilisateur":
                     st.success(f"⏳ Temps total estimé : **{heures}h{minutes:02d}min** ({total} minutes)")
 
                     debut_dispo, fin_dispo = trouver_prochaine_dispo(total)
+                    # ➕ Ajouter une marge de 15 minutes entre les tâches
+                    debut_dispo += timedelta(minutes=15)
+                    fin_dispo += timedelta(minutes=15)
+
                     if debut_dispo and fin_dispo:
                         date_str = debut_dispo.strftime("%A %d/%m/%Y à %H:%M")
                         st.success(f"📆 Disponible le **{date_str}** jusqu'à {fin_dispo.strftime('%H:%M')}")

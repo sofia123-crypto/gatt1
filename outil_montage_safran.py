@@ -233,32 +233,28 @@ elif role == "Utilisateur":
 
                         # **Formulaire utilisateur pour ajouter la tâche (attention au scope!)**
                         with st.form("ajout_tache_form"):
-                            nom_tache = st.text_input("📄 Nom de la tâche à ajouter :", "Montage client", key="user_nom")
-                            date_tache = st.date_input("📅 Date de la tâche", value=debut_dispo.date())
+                            nom_tache = st.text_input("📄 Nom de la tâche :", "Montage client")
+                            date_tache = st.date_input("📅 Date", value=debut_dispo.date())
                             col1, col2 = st.columns(2)
-                            heure_debut = col1.time_input("Heure de début", value=debut_dispo.time())
-                            heure_fin = col2.time_input("Heure de fin", value=fin_dispo.time())
+                            heure_debut = col1.time_input("Heure début", value=debut_dispo.time())
+                            heure_fin = col2.time_input("Heure fin", value=fin_dispo.time())
 
-                            ajout = st.form_submit_button("📌 Ajouter au planning")
+                            ajouter = st.form_submit_button("📌 Ajouter au planning")
 
-                            if ajout:
+                            if ajouter:
                                 if heure_debut >= heure_fin:
-                                    st.error("L'heure de fin doit être après l'heure de début.")
+                                    st.error("L'heure de fin doit être après le début.")
                                 elif not nom_tache.strip():
-                                    st.error("Veuillez saisir un nom de tâche.")
+                                    st.error("Veuillez saisir un nom.")
                                 else:
-                                    if "admin_planning" not in st.session_state:
-                                        st.session_state.admin_planning = []
-
                                     st.session_state.admin_planning.append((
                                         date_tache.strftime("%Y-%m-%d"),
                                         heure_debut.strftime("%H:%M"),
                                         heure_fin.strftime("%H:%M"),
                                         nom_tache.strip()
                                     ))
-                                    st.success("Tâche ajoutée au planning.")
-                                    # Optionnel: Forcer un rerun si tu veux que le gantt s'affiche immédiatement
-                                    # st.experimental_rerun()
+                                    st.success("✅ Tâche ajoutée avec succès.")
+
 
     if st.session_state.admin_planning:
         with st.expander("📊 Visualisation du planning Gantt", expanded=True):

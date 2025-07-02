@@ -182,13 +182,27 @@ elif role == "Utilisateur":
     st.info("ℹ️ Chargement des données de montage")
     try:
         base_df = pd.read_csv("Test_1.csv")
-        base_df.columns = base_df.columns.str.strip().str.lower().str.replace(" ", "")
-        base_df["reference"] = base_df["reference"].astype(str).str.strip()
-        base_df["temps_montage"] = pd.to_numeric(base_df["temps_montage"], errors='coerce').fillna(0).astype(int)
-        st.success("✅ Base de données chargée")
-    except Exception as e:
-        st.error(f"❌ Erreur chargement base : {e}")
-        st.stop()
+        base_df.columns = (
+            base_df.columns
+            .str.strip()
+            .str.lower()
+            .str.replace('\ufeff', '', regex=False)
+            .str.replace(' ', '_')
+        )    
+
+        st.write("🔎 Colonnes chargées :", base_df.columns.tolist())  # DEBUG
+
+        if 'reference' not in base_df.columns or 'temps_montage' not in base_df.columns:
+            st.error("❌ La base doit contenir les colonnes 'reference' et 'temps_montage'")
+            st.stop()
+
+        base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
+        st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
+
+except Exception as e:
+    st.error(f"❌ Erreur chargement base : {str(e)}")
+    st.stop()
+
 
     fichier_commande = st.file_uploader("📄 Charger votre commande", type="csv")
     if fichier_commande:

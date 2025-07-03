@@ -4,10 +4,10 @@ import pandas as pd
 from datetime import datetime, timedelta, time
 import plotly.express as px
 import plotly.graph_objects as go
-
+import os
 # Initialisation session
 if "admin_planning" not in st.session_state:
-    st.session_state.admin_planning = []
+    st.session_state.admin_planning = charger_planning()
 
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
@@ -15,6 +15,20 @@ st.title("🔧 Estimation du Temps de Montage")
 # -----------------------------
 # 🔧 Fonctions Utilitaires
 # -----------------------------
+FICHIER_PLANNING = "planning_admin.csv"
+def charger_planning():
+    if os.path.exists(FICHIER_PLANNING):
+        try:
+            df = pd.read_csv(FICHIER_PLANNING)
+            return df[["date", "heure_debut", "heure_fin", "nom"]].values.tolist()
+        except:
+            return []
+    return []
+
+def sauvegarder_planning(planning):
+    df = pd.DataFrame(planning, columns=["date", "heure_debut", "heure_fin", "nom"])
+    df.to_csv(FICHIER_PLANNING, index=False)
+
 def calculer_temps(commande_df, base_df):
     total_minutes = 0
     erreurs = []
@@ -201,6 +215,7 @@ if role == "Administrateur":
                     str(date_plan), t_debut.strftime("%H:%M"), t_fin.strftime("%H:%M"), nom
                 ))
                 st.success("✅ Tâche ajoutée.")
+                sauvegarder_planning(st.session_state.admin_planning)  # 🔐 ENREGISTRE
 
     if st.session_state.admin_planning:
         st.subheader("📋 Tâches planifiées")
@@ -292,6 +307,7 @@ elif role == "Utilisateur":
                         date.strftime("%Y-%m-%d"), h_debut.strftime("%H:%M"),
                         h_fin.strftime("%H:%M"), nom
                     ))
+                    sauvegarder_planning(st.session_state.admin_planning)  # 🔐 ENREGISTRE
                     st.success("✅ Tâche ajoutée au planning")
 
     # --- Affichage du Gantt ---

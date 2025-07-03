@@ -92,13 +92,17 @@ def afficher_gantt(planning):
         df["Fin"] = pd.to_datetime(df["date"] + " " + df["heure_fin"], errors='coerce')
         df.dropna(subset=["Début", "Fin"], inplace=True)
 
+        # Semaine à afficher
         semaine = [datetime.today().date() + timedelta(days=i) for i in range(7)]
         jours_str = [j.strftime("%d/%m") for j in semaine]
 
+        # Préparer le graphe
         fig = go.Figure()
         palette = px.colors.qualitative.Plotly
-        couleurs = {nom: palette[i % len(palette)] for i, nom in enumerate(df["nom"].unique())}
+        noms_uniques = sorted(df["nom"].unique())
+        couleurs = {nom: palette[i % len(palette)] for i, nom in enumerate(noms_uniques)}
 
+        # Ajouter les barres de tâches
         for _, row in df.iterrows():
             jour_obj = pd.to_datetime(row["date"]).date()
             if jour_obj not in semaine:
@@ -117,17 +121,46 @@ def afficher_gantt(planning):
                 width=0.6,
                 marker_color=couleurs[row["nom"]],
                 name=row["nom"],
-                hovertemplate=(f"{row['nom']}<br>{row['heure_debut']} - {row['heure_fin']}<extra></extra>")
+                hovertemplate=(f"{row['nom']}<br>{row['heure_debut']} - {row['heure_fin']}<extra></extra>"),
+                showlegend=True
             ))
 
+        # Ajouter une barre transparente pour les jours sans tâche
+        jours_existants = df["Début"].dt.strftime("%d/%m").unique()
+        jours_vides = [j for j in jours_str if j not in jours_existants]
+
+        for jour_str in jours_vides:
+            fig.add_trace(go.Bar(
+                x=[jour_str],
+                y=[0.1],  # Petite barre invisible
+                base=8,
+                width=0.6,
+                marker_color="rgba(0,0,0,0)",  # Transparent
+                hoverinfo="skip",
+                showlegend=False
+            ))
+
+        # Layout final
         fig.update_layout(
             title="📅 Planning Hebdomadaire",
             xaxis=dict(title="Date", side="top", categoryorder="array", categoryarray=jours_str),
-            yaxis=dict(title="Heure", range=[8, 17], autorange="reversed",
-                       tickvals=list(range(8, 18)), ticktext=[f"{h:02d}:00" for h in range(8, 18)]),
-            height=600, showlegend=True
+            yaxis=dict(
+                title="Heure",
+                range=[8, 17],
+                autorange="reversed",
+                tickvals=list(range(8, 18)),
+                ticktext=[f"{h:02d}:00" for h in range(8, 18)]
+            ),
+            height=600,
+            showlegend=True
         )
-        st.plotly_chart(fig, use_container_width=True)
+
+        # Centrage visuel du diagramme
+        with st.container():
+            c1, c2, c3 = st.columns([1, 6, 1])
+            with c2:
+                st.plotly_chart(fig, use_container_width=True)
+
     except Exception as e:
         st.error(f"❌ Erreur Gantt : {e}")
 
@@ -180,6 +213,8 @@ if role == "Administrateur":
 
 elif role == "Utilisateur":
     st.info("ℹ️ Chargement des données de montage")
+
+    # --- Chargement de la base ---
     try:
         base_df = pd.read_csv("Test_1.csv")
         base_df.columns = (
@@ -188,7 +223,7 @@ elif role == "Utilisateur":
             .str.lower()
             .str.replace('\ufeff', '', regex=False)
             .str.replace(' ', '_')
-        )    
+        )
 
         st.write("🔎 Colonnes chargées :", base_df.columns.tolist())  # DEBUG
 
@@ -199,11 +234,11 @@ elif role == "Utilisateur":
         base_df['temps_montage'] = pd.to_numeric(base_df['temps_montage'], errors='coerce').fillna(0).astype(int)
         st.success("✅ Base chargée - Colonnes: " + ", ".join(base_df.columns))
 
-except Exception as e:
-    st.error(f"❌ Erreur chargement base : {str(e)}")
-    st.stop()
+    except Exception as e:
+        st.error(f"❌ Erreur chargement base : {str(e)}")
+        st.stop()
 
-
+    # --- Chargement de la commande ---
     fichier_commande = st.file_uploader("📄 Charger votre commande", type="csv")
     if fichier_commande:
         try:
@@ -217,6 +252,7 @@ except Exception as e:
             st.error(f"❌ Erreur lecture commande : {e}")
             st.stop()
 
+    # --- Calcul du temps de montage ---
     if "commande_df" in st.session_state and not st.session_state.commande_df.empty:
         if st.button("⏱ Calculer le temps"):
             total, erreurs = calculer_temps(st.session_state.commande_df, base_df)
@@ -236,6 +272,7 @@ except Exception as e:
                     st.session_state.fin_suggere = fin_dispo
                     st.session_state.duree_suggeree = total
 
+    # --- Ajout de la tâche suggérée ---
     if "debut_suggere" in st.session_state:
         with st.form("ajout_tache_utilisateur"):
             st.subheader("📌 Ajouter au planning")
@@ -249,9 +286,14 @@ except Exception as e:
                 if h_debut >= h_fin:
                     st.error("Heure de fin doit être après le début.")
                 else:
-                    st.session_state.admin_planning.append((date.strftime("%Y-%m-%d"), h_debut.strftime("%H:%M"), h_fin.strftime("%H:%M"), nom))
+                    st.session_state.admin_planning.append((
+                        date.strftime("%Y-%m-%d"), h_debut.strftime("%H:%M"),
+                        h_fin.strftime("%H:%M"), nom
+                    ))
                     st.success("✅ Tâche ajoutée au planning")
 
+    # --- Affichage du Gantt ---
     if st.session_state.admin_planning:
         with st.expander("📊 Visualiser le planning", expanded=True):
             afficher_gantt(st.session_state.admin_planning)
+

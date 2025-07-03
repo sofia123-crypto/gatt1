@@ -7,7 +7,6 @@ import plotly.graph_objects as go
 # Initialisation session
 if "admin_planning" not in st.session_state:
     st.session_state.admin_planning =[]
-
 st.set_page_config(page_title="🛠️ Calcul du Temps de Montage", layout="wide")
 st.title("🔧 Estimation du Temps de Montage")
 

@@ -151,6 +151,8 @@ def afficher_gantt(planning):
                 tickvals=list(range(8, 18)),
                 ticktext=[f"{h:02d}:00" for h in range(8, 18)]
             ),
+            barmode="stack",
+            bargap=0.05,
             height=600,
             showlegend=True
         )
